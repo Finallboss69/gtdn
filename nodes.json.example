@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "id":        "vps1",
+      "name":      "VPS1 — Principal (Francia)",
+      "login_url": "http://127.0.0.1:7771",
+      "game_url":  "http://127.0.0.1:7772",
+      "token":     ""
+    },
+    {
+      "id":        "vps2",
+      "name":      "VPS2 — Backup (Alemania)",
+      "login_url": "http://185.x.x.x:7771",
+      "game_url":  "http://185.x.x.x:7772",
+      "token":     "token-secreto-cambia-esto"
+    },
+    {
+      "id":        "vps3",
+      "name":      "VPS3 — Extra (USA)",
+      "login_url": "http://192.x.x.x:7771",
+      "game_url":  "http://192.x.x.x:7772",
+      "token":     "token-secreto-cambia-esto"
+    }
+  ]
+}

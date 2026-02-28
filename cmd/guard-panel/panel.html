@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUARD_GO Panel</title>
+<style>
+:root {
+  --bg:     #0d0d14;
+  --card:   #13131f;
+  --card2:  #1a1a2a;
+  --border: #252535;
+  --text:   #cccce0;
+  --muted:  #5a5a80;
+  --accent: #5b8ff0;
+  --green:  #4ec97a;
+  --red:    #e05555;
+  --orange: #e09040;
+  --login:  #5b8ff0;
+  --game:   #4ec97a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Consolas', monospace;
+  font-size: 13px;
+  padding: 16px;
+}
+
+/* ===== HEADER ===== */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.logo { font-size: 18px; font-weight: 700; letter-spacing: 2px; color: var(--accent); }
+.logo span { color: var(--muted); font-weight: 400; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.refresh-info { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ===== BLOCK FORM ===== */
+.block-form {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.block-form label { color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+input[type=text], select {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 5px; padding: 5px 9px;
+  font-size: 12px; font-family: monospace;
+}
+input[type=text]:focus, select:focus { outline: none; border-color: var(--accent); }
+input[type=text] { width: 150px; }
+select { max-width: 160px; }
+.btn {
+  border: none; border-radius: 5px; padding: 5px 14px;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+}
+.btn:hover { opacity: .8; }
+.btn-red   { background: var(--red);    color: #fff; }
+.btn-green { background: var(--green);  color: #000; }
+.btn-blue  { background: var(--accent); color: #fff; }
+.btn-sm    { padding: 3px 9px; font-size: 11px; }
+.sep { color: var(--border); margin: 0 4px; }
+
+/* ===== NODE GRID ===== */
+.section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.node-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; cursor: pointer; transition: border-color .15s, background .15s;
+  user-select: none;
+}
+.node-card:hover { border-color: var(--accent); }
+.node-card.selected { border-color: var(--accent); background: var(--card2); }
+.nc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.nc-name { font-weight: 700; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.nc-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  padding: 2px 6px; border-radius: 20px; text-transform: uppercase;
+}
+.b-online  { background: #142a1c; color: var(--green); }
+.b-offline { background: #2a1212; color: var(--red); }
+.b-drain   { background: #2a1e08; color: var(--orange); }
+.b-load    { background: #2a1e08; color: var(--orange); }
+.nc-rows { display: flex; flex-direction: column; gap: 4px; }
+.nc-row { display: flex; align-items: center; gap: 6px; }
+.nc-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; width: 36px; flex-shrink: 0; }
+.nc-val { font-family: monospace; font-size: 11px; font-weight: 600; }
+.nc-pct { font-size: 10px; margin-left: auto; }
+.nc-progwrap { flex: 1; background: var(--border); border-radius: 2px; height: 3px; }
+.nc-progbar  { height: 3px; border-radius: 2px; transition: width .4s ease; }
+.nc-rejects { margin-top: 5px; font-size: 10px; color: var(--muted); }
+.nc-rejects span { color: var(--orange); font-family: monospace; }
+
+/* ===== SERVICE DETAIL ===== */
+.detail-title { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.detail-title strong { color: var(--accent); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.service-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.card-header {
+  padding: 9px 14px; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.card-header h2 { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.login .card-header h2 { color: var(--login); }
+.game  .card-header h2 { color: var(--game); }
+.badges-row { display: flex; gap: 5px; }
+
+/* ===== STATS ===== */
+.stats-row { display: flex; padding: 10px 14px; gap: 0; border-bottom: 1px solid var(--border); }
+.stat { flex: 1; text-align: center; padding: 0 6px; border-right: 1px solid var(--border); }
+.stat:last-child { border-right: none; }
+.stat-val { font-size: 20px; font-weight: 700; font-family: monospace; line-height: 1.2; }
+.stat-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 1px; }
+.stat-pct { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.c-blue   { color: var(--accent); }
+.c-green  { color: var(--green); }
+.c-orange { color: var(--orange); }
+.c-red    { color: var(--red); }
+.c-muted  { color: var(--muted); }
+.prog-wrap { background: var(--border); border-radius: 2px; height: 3px; margin-top: 4px; }
+.prog-bar  { height: 3px; border-radius: 2px; transition: width .5s ease; }
+
+/* ===== CHARTS ===== */
+.charts-row {
+  display: flex; gap: 10px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.chart-box { flex: 1; min-width: 120px; }
+.chart-lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 3px; text-transform: uppercase; }
+.chart-box svg { display: block; width: 100%; height: 44px; }
+
+/* ===== SYSINFO ===== */
+.sysinfo-row {
+  display: flex; gap: 0; padding: 7px 14px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.si { flex: 1; min-width: 80px; text-align: center; padding: 0 4px; border-right: 1px solid var(--border); }
+.si:last-child { border-right: none; }
+.si-val { font-size: 13px; font-weight: 600; color: var(--text); }
+.si-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 1px; }
+
+/* ===== IP FILTER ===== */
+.ip-filter-wrap { margin-bottom: 5px; }
+.ip-filter {
+  width: 100%; padding: 4px 8px; font-size: 11px;
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 4px; font-family: monospace;
+}
+.ip-filter:focus { outline: none; border-color: var(--accent); }
+
+/* ===== TABLES ===== */
+.section {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.section:last-child { border-bottom: none; }
+.sec-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cnt { background: var(--card2); color: var(--muted); border-radius: 10px; padding: 1px 6px; font-size: 10px; }
+.tbl-wrap { max-height: 200px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th {
+  text-align: left; color: var(--muted); font-weight: 600; font-size: 10px;
+  padding: 3px 5px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--card);
+}
+td { padding: 3px 5px; border-bottom: 1px solid var(--border); vertical-align: middle; font-family: monospace; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--card2); }
+.empty td { text-align: center; color: var(--muted); padding: 12px; }
+.ip-cell { color: var(--text); font-weight: 600; }
+.tag-block { color: var(--red); font-size: 10px; font-weight: 700; }
+.tag-ok    { color: var(--green); font-size: 10px; }
+
+/* ===== EVENTS ===== */
+.events-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; margin-top: 16px;
+}
+.events-card .sec-title { margin-bottom: 8px; }
+#events-list { max-height: 180px; overflow-y: auto; font-size: 11px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.ev-row { padding: 3px 0; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.ev-row:last-child { border-bottom: none; }
+.ev-time { color: var(--muted); font-family: monospace; min-width: 56px; font-size: 10px; }
+.ev-node { color: var(--muted); font-size: 9px; min-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+.ev-src  { font-weight: 700; font-size: 9px; min-width: 34px; }
+.ev-src.login { color: var(--login); }
+.ev-src.game  { color: var(--game); }
+.ev-type { font-family: monospace; font-size: 11px; }
+.ev-ip   { color: var(--orange); font-family: monospace; }
+.ev-detail { color: var(--muted); font-size: 10px; }
+.ev-empty { color: var(--muted); padding: 10px; text-align: center; }
+
+/* ===== TOAST ===== */
+#toast {
+  position: fixed; bottom: 18px; right: 18px;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 7px; padding: 9px 16px; font-size: 12px;
+  opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 9999;
+}
+#toast.show { opacity: 1; pointer-events: auto; }
+#toast.ok  { border-color: var(--green); color: var(--green); }
+#toast.err { border-color: var(--red);   color: var(--red); }
+
+/* ===== NO NODES ===== */
+.no-node { color: var(--muted); padding: 20px; text-align: center; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">GUARD<span>_</span>GO <span style="font-size:12px;letter-spacing:0">Panel</span></div>
+  <div class="header-right">
+    <div class="refresh-info">
+      <div class="dot"></div>
+      Auto-refresh 5s &nbsp;|&nbsp; <span id="last-update">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BLOQUEO / ACCIONES ===== -->
+<div class="block-form">
+  <label>Nodo</label>
+  <select id="action-node"></select>
+  <span class="sep">|</span>
+  <label>Bloquear IP</label>
+  <input type="text" id="block-ip" placeholder="1.2.3.4" maxlength="45" />
+  <select id="block-svc">
+    <option value="login">Login</option>
+    <option value="game">Game</option>
+    <option value="both">Ambos</option>
+  </select>
+  <button class="btn btn-red" onclick="manualBlock()">Bloquear vía FW</button>
+  <span class="sep">|</span>
+  <select id="unblock-svc">
+    <option value="login">Login</option>
+    <option value="game">Game</option>
+    <option value="both">Ambos</option>
+  </select>
+  <button class="btn btn-blue" onclick="unblockAll()">Desbloquear todos</button>
+</div>
+
+<!-- ===== GRID DE NODOS ===== -->
+<div class="section-title">
+  Nodos activos <span class="cnt" id="node-count">0</span>
+</div>
+<div class="node-grid" id="node-grid">
+  <div class="no-node">Cargando nodos…</div>
+</div>
+
+<!-- ===== DETALLE DEL NODO SELECCIONADO ===== -->
+<div id="detail-section" style="display:none">
+  <div class="detail-title" style="margin-bottom:12px">
+    Detalle — <strong id="detail-node-name">—</strong>
+  </div>
+  <div class="grid">
+
+    <!-- LOGIN -->
+    <div class="service-card login">
+      <div class="card-header">
+        <h2>Login Server</h2>
+        <div class="badges-row">
+          <span class="badge b-offline" id="badge-login">OFFLINE</span>
+          <span class="badge b-drain"   id="badge-drain" style="display:none">DRAIN</span>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-val c-blue" id="l-active">—</div>
+          <div class="stat-lbl">Conexiones</div>
+          <div class="stat-pct" id="l-pct"></div>
+          <div class="prog-wrap"><div class="prog-bar" id="l-prog" style="width:0;background:var(--accent)"></div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-muted" id="l-maxconns">—</div>
+          <div class="stat-lbl">Límite</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-muted" id="l-ips">—</div>
+          <div class="stat-lbl">IPs track</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-orange" id="l-rejects">—</div>
+          <div class="stat-lbl">Rechazos</div>
+        </div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-lbl">Conexiones activas</div>
+          <svg id="chart-l-conns" viewBox="0 0 200 44" preserveAspectRatio="none">
+            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          </svg>
+        </div>
+        <div class="chart-box">
+          <div class="chart-lbl">Rechazos / seg</div>
+          <svg id="chart-l-rate" viewBox="0 0 200 44" preserveAspectRatio="none">
+            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          </svg>
+        </div>
+      </div>
+      <div class="sysinfo-row">
+        <div class="si"><div class="si-val" id="l-goroutines">—</div><div class="si-lbl">Goroutines</div></div>
+        <div class="si"><div class="si-val" id="l-heap">—</div><div class="si-lbl">Heap MB</div></div>
+        <div class="si"><div class="si-val" id="l-sys">—</div><div class="si-lbl">Sys MB</div></div>
+        <div class="si"><div class="si-val" id="l-gc">—</div><div class="si-lbl">GC runs</div></div>
+        <div class="si"><div class="si-val" id="l-uptime">—</div><div class="si-lbl">Uptime</div></div>
+      </div>
+      <div class="section">
+        <div class="sec-title">IPs rastreadas <span class="cnt" id="l-ip-count">0</span></div>
+        <div class="ip-filter-wrap"><input type="text" class="ip-filter" placeholder="Filtrar IP..." oninput="filterIPs(this,'tbl-l-ips')"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>IP</th><th>Conns</th><th>Denies</th><th>Blqs</th><th>Estado</th><th>Hasta</th><th></th></tr></thead>
+            <tbody id="tbl-l-ips"><tr class="empty"><td colspan="7">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-title">Bloqueados FW <span class="cnt" id="l-fw-count">0</span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>IP</th><th>Resta</th><th>Desbloquea</th><th></th></tr></thead>
+            <tbody id="tbl-l-fw"><tr class="empty"><td colspan="4">Sin bloqueos</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME -->
+    <div class="service-card game">
+      <div class="card-header">
+        <h2>Game Server</h2>
+        <div class="badges-row">
+          <span class="badge b-offline" id="badge-game">OFFLINE</span>
+          <span class="badge b-load"    id="badge-game-load" style="display:none">CARGA ALTA</span>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-val c-blue" id="g-active">—</div>
+          <div class="stat-lbl">Conexiones</div>
+          <div class="stat-pct" id="g-pct"></div>
+          <div class="prog-wrap"><div class="prog-bar" id="g-prog" style="width:0;background:var(--accent)"></div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-muted" id="g-maxconns">—</div>
+          <div class="stat-lbl">Límite</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-muted" id="g-ips">—</div>
+          <div class="stat-lbl">IPs track</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-orange" id="g-rejects">—</div>
+          <div class="stat-lbl">Rechazos</div>
+        </div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-lbl">Conexiones activas</div>
+          <svg id="chart-g-conns" viewBox="0 0 200 44" preserveAspectRatio="none">
+            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          </svg>
+        </div>
+        <div class="chart-box">
+          <div class="chart-lbl">Rechazos / seg</div>
+          <svg id="chart-g-rate" viewBox="0 0 200 44" preserveAspectRatio="none">
+            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          </svg>
+        </div>
+      </div>
+      <div class="sysinfo-row">
+        <div class="si"><div class="si-val" id="g-goroutines">—</div><div class="si-lbl">Goroutines</div></div>
+        <div class="si"><div class="si-val" id="g-heap">—</div><div class="si-lbl">Heap MB</div></div>
+        <div class="si"><div class="si-val" id="g-sys">—</div><div class="si-lbl">Sys MB</div></div>
+        <div class="si"><div class="si-val" id="g-gc">—</div><div class="si-lbl">GC runs</div></div>
+        <div class="si"><div class="si-val" id="g-uptime">—</div><div class="si-lbl">Uptime</div></div>
+      </div>
+      <div class="section">
+        <div class="sec-title">IPs rastreadas <span class="cnt" id="g-ip-count">0</span></div>
+        <div class="ip-filter-wrap"><input type="text" class="ip-filter" placeholder="Filtrar IP..." oninput="filterIPs(this,'tbl-g-ips')"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>IP</th><th>Conns</th><th>Denies</th><th>Blqs</th><th>Estado</th><th>Hasta</th><th></th></tr></thead>
+            <tbody id="tbl-g-ips"><tr class="empty"><td colspan="7">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-title">Bloqueados FW <span class="cnt" id="g-fw-count">0</span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>IP</th><th>Resta</th><th>Desbloquea</th><th></th></tr></thead>
+            <tbody id="tbl-g-fw"><tr class="empty"><td colspan="4">Sin bloqueos</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div><!-- /detail-section -->
+
+<!-- ===== EVENTOS ===== -->
+<div class="events-card">
+  <div class="sec-title">
+    Eventos recientes (todos los nodos)
+    <span class="cnt" id="events-count">0</span>
+  </div>
+  <div id="events-list"><div class="ev-empty">Sin eventos</div></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===================================================================
+// ESTADO GLOBAL
+// ===================================================================
+let nodes = [];          // [{id, name}] cargados desde /api/nodes
+let selectedNodeId = null;
+let nodeStatuses = {};   // {nodeId: {login: resp, game: resp}}
+let allNodeEvents = {};  // {nodeId: [events...]}
+
+// ===================================================================
+// UTILS
+// ===================================================================
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtRemaining(s){
+  if(s<=0) return '0s';
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  if(h>0) return h+'h '+m+'m';
+  if(m>0) return m+'m '+sec+'s';
+  return sec+'s';
+}
+function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleTimeString('es-AR',{hour12:false}); }
+function fmtUptime(secs){
+  if(secs<60) return secs+'s';
+  if(secs<3600) return Math.floor(secs/60)+'m '+secs%60+'s';
+  return Math.floor(secs/3600)+'h '+Math.floor((secs%3600)/60)+'m';
+}
+function fmtDrainTimer(drainSince){
+  if(!drainSince) return '';
+  const secs=Math.floor(Date.now()/1000-drainSince);
+  if(secs<0) return '';
+  return ' '+String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+}
+function fmtEvTime(ts){ return new Date(ts*1000).toLocaleTimeString('es-AR',{hour12:false}); }
+function pctColor(pct){ return pct>=80?'var(--red)':pct>=50?'var(--orange)':'var(--accent)'; }
+
+// ===================================================================
+// FETCH
+// ===================================================================
+async function apiFetch(url, opts){
+  try{
+    const r=await fetch(url,opts);
+    let data; try{ data=await r.json(); }catch(e){ data={error:'parse_error'}; }
+    return {ok:r.ok && !data?.error, data};
+  }catch(e){ return {ok:false, data:{error:'service_offline'}}; }
+}
+
+// ===================================================================
+// TOAST
+// ===================================================================
+let _toastT;
+function toast(msg,type){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+(type||'ok');
+  clearTimeout(_toastT); _toastT=setTimeout(()=>el.className='',3000);
+}
+
+// ===================================================================
+// NODE GRID
+// ===================================================================
+function buildNodeGrid(){
+  const grid=document.getElementById('node-grid');
+  document.getElementById('node-count').textContent=nodes.length;
+  if(!nodes.length){ grid.innerHTML='<div class="no-node">No hay nodos configurados en nodes.json</div>'; return; }
+  grid.innerHTML=nodes.map(n=>`
+    <div class="node-card" id="card-${n.id}" onclick="selectNode('${n.id}')">
+      <div class="nc-header">
+        <span class="nc-name" title="${esc(n.name)}">${esc(n.name)}</span>
+        <div class="nc-badges">
+          <span class="badge b-offline" id="nc-bl-${n.id}">L</span>
+          <span class="badge b-offline" id="nc-bg-${n.id}">G</span>
+        </div>
+      </div>
+      <div class="nc-rows">
+        <div class="nc-row">
+          <span class="nc-lbl">LOGIN</span>
+          <span class="nc-val" id="nc-lv-${n.id}">—/—</span>
+          <span class="nc-pct" id="nc-lp-${n.id}"></span>
+        </div>
+        <div class="nc-progwrap"><div class="nc-progbar" id="nc-lb-${n.id}" style="width:0"></div></div>
+        <div class="nc-row">
+          <span class="nc-lbl">GAME</span>
+          <span class="nc-val" id="nc-gv-${n.id}">—/—</span>
+          <span class="nc-pct" id="nc-gp-${n.id}"></span>
+        </div>
+        <div class="nc-progwrap"><div class="nc-progbar" id="nc-gb-${n.id}" style="width:0"></div></div>
+        <div class="nc-rejects">Rechazos: <span id="nc-rej-${n.id}">—</span></div>
+      </div>
+    </div>`).join('');
+  // Populate action node selector
+  const sel=document.getElementById('action-node');
+  sel.innerHTML=nodes.map(n=>`<option value="${n.id}">${esc(n.name)}</option>`).join('');
+}
+
+function updateNodeCard(nodeId, lResp, gResp){
+  const lOk=lResp?.ok && !lResp?.data?.error;
+  const gOk=gResp?.ok && !gResp?.data?.error;
+  const lData=lOk?lResp.data:{};
+  const gData=gOk?gResp.data:{};
+
+  // Badges LOGIN / GAME
+  const bl=document.getElementById('nc-bl-'+nodeId);
+  const bg=document.getElementById('nc-bg-'+nodeId);
+  if(bl){ bl.textContent='L'; bl.className='badge '+(lOk?'b-online':'b-offline'); }
+  if(bg){ bg.textContent='G'; bg.className='badge '+(gOk?'b-online':'b-offline'); }
+
+  // Login conns
+  const lPct=lData.max_conns>0? lData.active_conns/lData.max_conns*100 :0;
+  const gPct=gData.max_conns>0? gData.active_conns/gData.max_conns*100 :0;
+
+  const lv=document.getElementById('nc-lv-'+nodeId);
+  const lp=document.getElementById('nc-lp-'+nodeId);
+  const lb=document.getElementById('nc-lb-'+nodeId);
+  if(lv) lv.textContent=lOk?`${lData.active_conns}/${lData.max_conns}`:'—/—';
+  if(lp) lp.innerHTML=lOk?`<span style="color:${pctColor(lPct)}">${lPct.toFixed(0)}%</span>`:'';
+  if(lb){ lb.style.width=(lOk?lPct:0).toFixed(1)+'%'; lb.style.background=pctColor(lPct); }
+
+  const gv=document.getElementById('nc-gv-'+nodeId);
+  const gp=document.getElementById('nc-gp-'+nodeId);
+  const gb=document.getElementById('nc-gb-'+nodeId);
+  if(gv) gv.textContent=gOk?`${gData.active_conns}/${gData.max_conns}`:'—/—';
+  if(gp) gp.innerHTML=gOk?`<span style="color:${pctColor(gPct)}">${gPct.toFixed(0)}%</span>`:'';
+  if(gb){ gb.style.width=(gOk?gPct:0).toFixed(1)+'%'; gb.style.background=pctColor(gPct); }
+
+  // Rejects
+  const rejEl=document.getElementById('nc-rej-'+nodeId);
+  const totalRej=(lData.total_rejects||0)+(gData.total_rejects||0);
+  if(rejEl) rejEl.textContent=lOk||gOk?totalRej:'—';
+
+  // Drain badge en login badge
+  if(bl && lOk && lData.drain_mode){
+    bl.textContent='DRAIN'; bl.className='badge b-drain';
+  }
+}
+
+// ===================================================================
+// SELECT NODE
+// ===================================================================
+function selectNode(nodeId){
+  // Highlight card
+  document.querySelectorAll('.node-card').forEach(c=>c.classList.remove('selected'));
+  const card=document.getElementById('card-'+nodeId);
+  if(card) card.classList.add('selected');
+
+  selectedNodeId=nodeId;
+  // Sync action-node selector
+  const sel=document.getElementById('action-node');
+  if(sel) sel.value=nodeId;
+
+  // Show detail section
+  const det=document.getElementById('detail-section');
+  det.style.display='block';
+  const nodeName=nodes.find(n=>n.id===nodeId)?.name||nodeId;
+  document.getElementById('detail-node-name').textContent=nodeName;
+
+  // Immediately load detail
+  refreshDetail(nodeId);
+}
+
+// ===================================================================
+// SPARKLINE
+// ===================================================================
+function sparkline(samples, field, color, svgId){
+  const svg=document.getElementById(svgId);
+  if(!svg) return;
+  if(!samples||samples.length<2){
+    svg.innerHTML='<text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>'; return;
+  }
+  const vals=samples.map(s=>s[field]);
+  const max=Math.max(...vals,0.001);
+  const W=200,H=44,pad=3;
+  const pts=vals.map((v,i)=>{
+    const x=pad+(i/(vals.length-1))*(W-pad*2);
+    const y=H-pad-(v/max)*(H-pad*2);
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  const last=pts.split(' ').slice(-1)[0].split(',');
+  svg.innerHTML=`
+    <defs><linearGradient id="g${svgId}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${pad},${H} ${pts} ${last[0]},${H}" fill="url(#g${svgId})"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.5" fill="${color}"/>
+    <text x="${W-2}" y="10" text-anchor="end" fill="${color}" font-size="9" font-family="monospace">${vals.slice(-1)[0].toFixed(vals.slice(-1)[0]<10?1:0)}</text>`;
+}
+
+// ===================================================================
+// RENDER STATUS (detail panel)
+// ===================================================================
+function renderStatus(p, data, offline){
+  const isLogin=p==='l';
+  const badge=document.getElementById(isLogin?'badge-login':'badge-game');
+  if(offline){
+    badge.textContent='OFFLINE'; badge.className='badge b-offline';
+    ['active','maxconns','ips','rejects'].forEach(k=>{ const el=document.getElementById(p+'-'+k); if(el) el.textContent='—'; });
+    const prog=document.getElementById(p+'-prog'); if(prog) prog.style.width='0';
+    const pct=document.getElementById(p+'-pct'); if(pct) pct.textContent='';
+    if(isLogin){ const d=document.getElementById('badge-drain'); if(d) d.style.display='none'; }
+    else{ const d=document.getElementById('badge-game-load'); if(d) d.style.display='none'; }
+    return;
+  }
+  badge.textContent='ONLINE'; badge.className='badge b-online';
+  document.getElementById(p+'-active').textContent   = data.active_conns;
+  document.getElementById(p+'-maxconns').textContent = data.max_conns;
+  document.getElementById(p+'-ips').textContent      = data.ip_count;
+  document.getElementById(p+'-rejects').textContent  = data.total_rejects;
+
+  const pctVal=data.max_conns>0? data.active_conns/data.max_conns*100 :0;
+  const loadPct=data.load_pct!=null?data.load_pct:pctVal;
+  document.getElementById(p+'-active').className='stat-val '+(loadPct>=80?'c-red':loadPct>=50?'c-orange':'c-blue');
+  const bar=document.getElementById(p+'-prog');
+  bar.style.width=pctVal.toFixed(1)+'%';
+  bar.style.background=pctVal>=80?'var(--red)':pctVal>=50?'var(--orange)':'var(--accent)';
+  document.getElementById(p+'-pct').innerHTML=`<span style="color:${pctColor(loadPct)}">(${loadPct.toFixed(1)}%)</span>`;
+
+  if(isLogin){
+    const drain=document.getElementById('badge-drain');
+    if(data.drain_mode){ drain.style.display='inline'; drain.textContent='DRAIN'+fmtDrainTimer(data.drain_since); }
+    else{ drain.style.display='none'; }
+  } else {
+    const loadBadge=document.getElementById('badge-game-load');
+    loadBadge.style.display=loadPct>=80?'inline':'none';
+  }
+}
+
+function renderSysinfo(p, data, offline){
+  if(offline){ ['goroutines','heap','sys','gc','uptime'].forEach(k=>{ const el=document.getElementById(p+'-'+k); if(el) el.textContent='—'; }); return; }
+  document.getElementById(p+'-goroutines').textContent=data.goroutines;
+  document.getElementById(p+'-heap').textContent=data.heap_mb.toFixed(1)+' MB';
+  document.getElementById(p+'-sys').textContent=data.sys_mb.toFixed(1)+' MB';
+  document.getElementById(p+'-gc').textContent=data.gc_count;
+  document.getElementById(p+'-uptime').textContent=fmtUptime(data.uptime_seconds);
+}
+
+// ===================================================================
+// RENDER IPS / FW
+// ===================================================================
+function filterIPs(input, tbodyId){
+  const val=input.value.trim().toLowerCase();
+  document.getElementById(tbodyId).querySelectorAll('tr:not(.empty)').forEach(row=>{
+    const ip=row.querySelector('.ip-cell');
+    row.style.display=(!ip||val===''||ip.textContent.toLowerCase().includes(val))?'':'none';
+  });
+}
+
+function renderIPs(tbodyId, cntId, ips, nodeId, svc){
+  const tbody=document.getElementById(tbodyId);
+  document.getElementById(cntId).textContent=ips?ips.length:0;
+  if(!ips||!ips.length){ tbody.innerHTML='<tr class="empty"><td colspan="7">Sin IPs rastreadas</td></tr>'; return; }
+  ips.sort((a,b)=>{ if(a.temp_blocked!==b.temp_blocked) return a.temp_blocked?-1:1; return b.deny_count-a.deny_count; });
+  tbody.innerHTML=ips.map(ip=>`<tr>
+    <td class="ip-cell">${esc(ip.ip)}</td>
+    <td>${ip.live_count}</td><td>${ip.deny_count}</td><td>${ip.block_count||0}</td>
+    <td>${ip.temp_blocked?'<span class="tag-block">BLOQ</span>':'<span class="tag-ok">OK</span>'}</td>
+    <td style="color:var(--orange);font-size:10px">${ip.temp_blocked?fmtDate(ip.block_until):'—'}</td>
+    <td><button class="btn btn-green btn-sm" onclick="unblockIP('${esc(ip.ip)}','${nodeId}','${svc}')">Desbloq</button></td>
+  </tr>`).join('');
+}
+
+function renderFW(tbodyId, cntId, list, nodeId, svc){
+  const tbody=document.getElementById(tbodyId);
+  document.getElementById(cntId).textContent=list?list.length:0;
+  if(!list||!list.length){ tbody.innerHTML='<tr class="empty"><td colspan="4">Sin bloqueos FW</td></tr>'; return; }
+  list.sort((a,b)=>a.remaining_seconds-b.remaining_seconds);
+  tbody.innerHTML=list.map(item=>`<tr>
+    <td class="ip-cell" style="color:var(--red)">${esc(item.ip)}</td>
+    <td style="color:var(--orange)">${fmtRemaining(item.remaining_seconds)}</td>
+    <td style="color:var(--muted);font-size:10px">${fmtDate(item.unblock_at)}</td>
+    <td><button class="btn btn-green btn-sm" onclick="unblockIP('${esc(item.ip)}','${nodeId}','${svc}')">Desbloq</button></td>
+  </tr>`).join('');
+}
+
+// ===================================================================
+// RENDER EVENTS
+// ===================================================================
+function renderEvents(){
+  const all=[];
+  Object.entries(allNodeEvents).forEach(([nodeId,evs])=>{
+    const name=nodes.find(n=>n.id===nodeId)?.name||nodeId;
+    evs.forEach(e=>all.push({...e, nodeId, nodeName:name}));
+  });
+  all.sort((a,b)=>b.t-a.t);
+  const top=all.slice(0,40);
+  document.getElementById('events-count').textContent=top.length;
+  const el=document.getElementById('events-list');
+  if(!top.length){ el.innerHTML='<div class="ev-empty">Sin eventos recientes</div>'; return; }
+  el.innerHTML=top.map(e=>`<div class="ev-row">
+    <span class="ev-time">${fmtEvTime(e.t)}</span>
+    <span class="ev-node" title="${esc(e.nodeName)}">${esc(e.nodeName)}</span>
+    <span class="ev-src ${e.src}">${e.src.toUpperCase()}</span>
+    <span class="ev-type">${esc(e.type)}</span>
+    ${e.ip?`<span class="ev-ip">${esc(e.ip)}</span>`:''}
+    ${e.detail?`<span class="ev-detail">${esc(e.detail)}</span>`:''}
+  </div>`).join('');
+}
+
+// ===================================================================
+// REFRESH
+// ===================================================================
+async function refreshAllStatus(){
+  await Promise.all(nodes.map(async n=>{
+    const [ls,gs]=await Promise.all([
+      apiFetch(`/api/node/${n.id}/login/status`),
+      apiFetch(`/api/node/${n.id}/game/status`),
+    ]);
+    nodeStatuses[n.id]={login:ls, game:gs};
+    updateNodeCard(n.id, ls, gs);
+  }));
+}
+
+async function refreshDetail(nodeId){
+  if(!nodeId) return;
+  const lStatus=nodeStatuses[nodeId]?.login;
+  const gStatus=nodeStatuses[nodeId]?.game;
+  const lOff=!lStatus?.ok||lStatus?.data?.error;
+  const gOff=!gStatus?.ok||gStatus?.data?.error;
+
+  const [lIPs,lFW,lSys,lMet, gIPs,gFW,gSys,gMet]=await Promise.all([
+    apiFetch(`/api/node/${nodeId}/login/ips`),
+    apiFetch(`/api/node/${nodeId}/login/blocked`),
+    apiFetch(`/api/node/${nodeId}/login/sysinfo`),
+    apiFetch(`/api/node/${nodeId}/login/metrics`),
+    apiFetch(`/api/node/${nodeId}/game/ips`),
+    apiFetch(`/api/node/${nodeId}/game/blocked`),
+    apiFetch(`/api/node/${nodeId}/game/sysinfo`),
+    apiFetch(`/api/node/${nodeId}/game/metrics`),
+  ]);
+
+  renderStatus('l', lStatus?.data, lOff);
+  renderStatus('g', gStatus?.data, gOff);
+  renderSysinfo('l', lSys.data, !lSys.ok||lSys.data?.error);
+  renderSysinfo('g', gSys.data, !gSys.ok||gSys.data?.error);
+
+  if(lMet.ok&&Array.isArray(lMet.data)){ sparkline(lMet.data,'active_conns','#5b8ff0','chart-l-conns'); sparkline(lMet.data,'reject_rate','#e09040','chart-l-rate'); }
+  if(gMet.ok&&Array.isArray(gMet.data)){ sparkline(gMet.data,'active_conns','#4ec97a','chart-g-conns'); sparkline(gMet.data,'reject_rate','#e09040','chart-g-rate'); }
+
+  if(!lOff){ renderIPs('tbl-l-ips','l-ip-count',lIPs.data,nodeId,'login'); renderFW('tbl-l-fw','l-fw-count',lFW.data,nodeId,'login'); }
+  else{ document.getElementById('tbl-l-ips').innerHTML='<tr class="empty"><td colspan="7">Offline</td></tr>'; document.getElementById('tbl-l-fw').innerHTML='<tr class="empty"><td colspan="4">Offline</td></tr>'; document.getElementById('l-ip-count').textContent='0'; document.getElementById('l-fw-count').textContent='0'; }
+  if(!gOff){ renderIPs('tbl-g-ips','g-ip-count',gIPs.data,nodeId,'game'); renderFW('tbl-g-fw','g-fw-count',gFW.data,nodeId,'game'); }
+  else{ document.getElementById('tbl-g-ips').innerHTML='<tr class="empty"><td colspan="7">Offline</td></tr>'; document.getElementById('tbl-g-fw').innerHTML='<tr class="empty"><td colspan="4">Offline</td></tr>'; document.getElementById('g-ip-count').textContent='0'; document.getElementById('g-fw-count').textContent='0'; }
+}
+
+async function refreshAllEvents(){
+  await Promise.all(nodes.map(async n=>{
+    const [le,ge]=await Promise.all([
+      apiFetch(`/api/node/${n.id}/login/events`),
+      apiFetch(`/api/node/${n.id}/game/events`),
+    ]);
+    const evs=[];
+    if(le.ok&&Array.isArray(le.data)) le.data.forEach(e=>evs.push({...e,src:'login'}));
+    if(ge.ok&&Array.isArray(ge.data)) ge.data.forEach(e=>evs.push({...e,src:'game'}));
+    allNodeEvents[n.id]=evs;
+  }));
+  renderEvents();
+}
+
+async function refresh(){
+  await refreshAllStatus();
+  if(selectedNodeId) await refreshDetail(selectedNodeId);
+  await refreshAllEvents();
+  document.getElementById('last-update').textContent=new Date().toLocaleTimeString('es-AR',{hour12:false});
+}
+
+// ===================================================================
+// ACTIONS
+// ===================================================================
+function getActionNode(){ return document.getElementById('action-node')?.value||selectedNodeId||nodes[0]?.id; }
+
+async function unblockIP(ip, nodeId, svc){
+  const r=await apiFetch(`/api/node/${nodeId}/${svc}/unblock`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});
+  if(r.ok){ toast(`Desbloqueado: ${ip} [${svc}@${nodeId}]`,'ok'); refresh(); }
+  else toast(`Error desbloqueando ${ip}`,'err');
+}
+
+async function unblockAll(){
+  const nodeId=getActionNode();
+  const svc=document.getElementById('unblock-svc').value;
+  const svcs=svc==='both'?['login','game']:[svc];
+  let total=0;
+  for(const s of svcs){
+    const r=await apiFetch(`/api/node/${nodeId}/${s}/unblock-all`,{method:'POST'});
+    if(r.ok){ total+=(r.data.cleared||0); }
+    else{ toast(`Error en unblock-all [${s}]`,'err'); return; }
+  }
+  toast(`Desbloqueados: ${total} IPs [${svc}]`,'ok');
+  refresh();
+}
+
+async function manualBlock(){
+  const ip=document.getElementById('block-ip').value.trim();
+  const svc=document.getElementById('block-svc').value;
+  const nodeId=getActionNode();
+  if(!ip){ toast('Ingresá una IP','err'); return; }
+  const svcs=svc==='both'?['login','game']:[svc];
+  for(const s of svcs){
+    const r=await apiFetch(`/api/node/${nodeId}/${s}/block`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});
+    if(!r.ok){ toast(`Error bloqueando ${ip} [${s}]`,'err'); return; }
+  }
+  toast(`Bloqueado: ${ip} [${svc}@${nodeId}]`,'ok');
+  document.getElementById('block-ip').value='';
+  refresh();
+}
+
+// ===================================================================
+// INIT
+// ===================================================================
+async function init(){
+  const r=await apiFetch('/api/nodes');
+  if(r.ok && Array.isArray(r.data)){
+    nodes=r.data;
+  } else {
+    nodes=[{id:'local',name:'Local'}];
+  }
+  buildNodeGrid();
+  if(nodes.length>0) selectNode(nodes[0].id);
+  await refresh();
+}
+
+init();
+setInterval(refresh, 5000);
+document.getElementById('block-ip').addEventListener('keydown',e=>{ if(e.key==='Enter') manualBlock(); });
+</script>
+</body>
+</html>
