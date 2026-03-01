@@ -6,7 +6,7 @@
       "id":         "vps1",
       "name":       "VPS1",
       "login_addr": "38.54.45.154:7666",
-      "game_addr":  "38.54.45.154:7667",
+      "game_addr":  "38.54.45.154:7669",
       "admin_url":  "http://38.54.45.154:7771",
       "token":      "token-secreto-cambia-esto"
     },
@@ -14,7 +14,7 @@
       "id":         "vps2",
       "name":       "VPS2",
       "login_addr": "45.77.100.200:7666",
-      "game_addr":  "45.77.100.200:7667",
+      "game_addr":  "45.77.100.200:7669",
       "admin_url":  "http://45.77.100.200:7771",
       "token":      "token-secreto-cambia-esto"
     }

@@ -125,7 +125,18 @@ type Server struct {
 	allowedIPs   []string       // IPs adicionales permitidas (además de loopback)
 	authToken    string         // si no vacío, requiere Authorization: Bearer <token> para IPs no-loopback
 	relayMu      sync.Mutex
-	relayRegistry map[string]time.Time // relay_id → last_seen
+	relayRegistry map[string]*relayInfo // relay_id → info
+}
+
+// relayInfo almacena el estado completo de un relay activo.
+type relayInfo struct {
+	RelayID   string
+	IP        string
+	NodeID    string
+	NodeName  string
+	LatencyMs int64
+	FirstSeen time.Time
+	LastSeen  time.Time
 }
 
 // New crea un Server de administración.
@@ -141,7 +152,7 @@ func New(lim *limiter.Limiter, fw *firewall.Manager, profile string,
 		startTime:     time.Now(),
 		history:       &metricsHistory{},
 		evLog:         &eventLog{},
-		relayRegistry: make(map[string]time.Time),
+		relayRegistry: make(map[string]*relayInfo),
 	}
 }
 
@@ -184,6 +195,7 @@ func (s *Server) Start(ctx context.Context, listenAddr string) error {
 	mux.HandleFunc("/api/unblock-all", s.handleUnblockAll)
 	mux.HandleFunc("/api/events",      s.handleEvents)
 	mux.HandleFunc("/api/relay/ping",  s.handleRelayPing)
+	mux.HandleFunc("/api/relay/list",  s.handleRelayList)
 
 	srv := &http.Server{
 		Addr:         listenAddr,
@@ -487,16 +499,77 @@ func (s *Server) handleRelayPing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		RelayID string `json:"relay_id"`
+		RelayID   string `json:"relay_id"`
+		NodeID    string `json:"node_id"`
+		NodeName  string `json:"node_name"`
+		LatencyMs int64  `json:"latency_ms"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RelayID == "" {
 		http.Error(w, "bad request: se requiere relay_id", http.StatusBadRequest)
 		return
 	}
+	// Extraer IP del cliente (puede ser la IP pública del relay)
+	clientIP, _, _ := net.SplitHostPort(r.RemoteAddr)
+	now := time.Now()
 	s.relayMu.Lock()
-	s.relayRegistry[req.RelayID] = time.Now()
+	if existing, ok := s.relayRegistry[req.RelayID]; ok {
+		existing.LastSeen  = now
+		existing.NodeID    = req.NodeID
+		existing.NodeName  = req.NodeName
+		existing.LatencyMs = req.LatencyMs
+		if clientIP != "" {
+			existing.IP = clientIP
+		}
+	} else {
+		s.relayRegistry[req.RelayID] = &relayInfo{
+			RelayID:   req.RelayID,
+			IP:        clientIP,
+			NodeID:    req.NodeID,
+			NodeName:  req.NodeName,
+			LatencyMs: req.LatencyMs,
+			FirstSeen: now,
+			LastSeen:  now,
+		}
+	}
 	s.relayMu.Unlock()
 	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+// handleRelayList devuelve la lista de relays activos con toda su información.
+func (s *Server) handleRelayList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	now := time.Now()
+	type RelayResp struct {
+		RelayID       string `json:"relay_id"`
+		IP            string `json:"ip"`
+		NodeID        string `json:"node_id"`
+		NodeName      string `json:"node_name"`
+		LatencyMs     int64  `json:"latency_ms"`
+		LastSeen      int64  `json:"last_seen"`
+		AgeSeconds    int64  `json:"age_seconds"`
+		FirstSeen     int64  `json:"first_seen"`
+		UptimeSeconds int64  `json:"uptime_seconds"`
+	}
+	s.relayMu.Lock()
+	result := make([]RelayResp, 0, len(s.relayRegistry))
+	for _, info := range s.relayRegistry {
+		result = append(result, RelayResp{
+			RelayID:       info.RelayID,
+			IP:            info.IP,
+			NodeID:        info.NodeID,
+			NodeName:      info.NodeName,
+			LatencyMs:     info.LatencyMs,
+			LastSeen:      info.LastSeen.Unix(),
+			AgeSeconds:    int64(now.Sub(info.LastSeen).Seconds()),
+			FirstSeen:     info.FirstSeen.Unix(),
+			UptimeSeconds: int64(now.Sub(info.FirstSeen).Seconds()),
+		})
+	}
+	s.relayMu.Unlock()
+	writeJSON(w, result)
 }
 
 // cleanRelayRegistry elimina entradas con last_seen mayor a 90s.
@@ -504,8 +577,8 @@ func (s *Server) cleanRelayRegistry() {
 	cutoff := time.Now().Add(-90 * time.Second)
 	s.relayMu.Lock()
 	defer s.relayMu.Unlock()
-	for id, t := range s.relayRegistry {
-		if t.Before(cutoff) {
+	for id, info := range s.relayRegistry {
+		if info.LastSeen.Before(cutoff) {
 			delete(s.relayRegistry, id)
 		}
 	}

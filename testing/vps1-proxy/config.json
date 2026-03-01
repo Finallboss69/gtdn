@@ -1,7 +1,7 @@
 {
   "login": {
     "listen_addr":             "0.0.0.0:7666",
-    "backend_addr":            "156.244.54.81:7666",
+    "backend_addr":            "45.235.99.117:7666",
     "max_live_conns_per_ip":   2,
     "attempt_refill_per_sec":  1.0,
     "attempt_burst":           4,
@@ -15,12 +15,12 @@
     "firewall_block_seconds":  900,
     "log_level":               "info",
     "admin_listen_addr":       "0.0.0.0:7771",
-    "admin_allow_ips":         ["156.244.54.81", "192.168.118.25"],
+    "admin_allow_ips":         ["45.235.99.117", "192.168.118.25"],
     "admin_token":             "G9xmK7pQ2wRs4Tn"
   },
   "game": {
-    "listen_addr":             "0.0.0.0:7667",
-    "backend_addr":            "156.244.54.81:7666",
+    "listen_addr":             "0.0.0.0:7669",
+    "backend_addr":            "45.235.99.117:7669",
     "max_live_conns_per_ip":   3,
     "attempt_refill_per_sec":  2.0,
     "attempt_burst":           6,
@@ -34,7 +34,7 @@
     "firewall_block_seconds":  600,
     "log_level":               "info",
     "admin_listen_addr":       "0.0.0.0:7772",
-    "admin_allow_ips":         ["156.244.54.81", "192.168.118.25"],
+    "admin_allow_ips":         ["45.235.99.117", "192.168.118.25"],
     "admin_token":             "G9xmK7pQ2wRs4Tn"
   }
 }

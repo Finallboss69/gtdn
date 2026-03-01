@@ -70,7 +70,7 @@ Write-Host "-- Puertos --" -ForegroundColor White
 
 foreach ($p in @(
     @{Port=7666; Desc="Login proxy (jugadores)"},
-    @{Port=7667; Desc="Game proxy (jugadores)"},
+    @{Port=7669; Desc="Game proxy (jugadores)"},
     @{Port=7771; Desc="Admin login (panel)"},
     @{Port=7772; Desc="Admin game  (panel)"}
 )) {
@@ -87,9 +87,9 @@ Write-Host "-- Firewall (reglas Allow) --" -ForegroundColor White
 
 $rules = @(
     @{Name="Guard Login Public"; Port=7666; Remote=$null},
-    @{Name="Guard Game Public";  Port=7667; Remote=$null},
+    @{Name="Guard Game Public";  Port=7669; Remote=$null},
     @{Name="Guard Admin Login";  Port=7771; Remote=$null},          # abierto a todos: panel + relay heartbeats
-    @{Name="Guard Admin Game";   Port=7772; Remote="156.244.54.81"} # solo panel (VPS3)
+    @{Name="Guard Admin Game";   Port=7772; Remote="45.235.99.117"} # solo panel (VPS3)
 )
 
 foreach ($rule in $rules) {
@@ -131,7 +131,7 @@ foreach ($rule in $rules) {
 Write-Host ""
 Write-Host "-- Firewall (reglas BLOCK conflictivas) --" -ForegroundColor White
 
-foreach ($port in @(7666,7667,7771,7772)) {
+foreach ($port in @(7666,7669,7771,7772)) {
     $conflict = @()
     Get-NetFirewallRule -Direction Inbound -Action Block -Enabled True -ErrorAction SilentlyContinue | ForEach-Object {
         $pf = $_ | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue
@@ -162,7 +162,7 @@ if ($errCount -eq 0 -and $fixCount -eq 0) {
 }
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Login proxy:  0.0.0.0:7666 -> 156.244.54.81:7666"
-Write-Host "Game proxy:   0.0.0.0:7667 -> 156.244.54.81:7666"
+Write-Host "Login proxy:  0.0.0.0:7666 -> 45.235.99.117:7666"
+Write-Host "Game proxy:   0.0.0.0:7669 -> 45.235.99.117:7669"
 Write-Host "Logs:         $dir\guard-login.log  |  $dir\guard-game.log"
 Write-Host ""

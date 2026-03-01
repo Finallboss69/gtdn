@@ -287,6 +287,7 @@ func runGuard(ctx context.Context, cfg config.ProfileConfig) error {
 	go func() {
 		tick := time.NewTicker(10 * time.Second)
 		defer tick.Stop()
+		wasHighLoad := false
 		for {
 			select {
 			case <-ctx.Done():
@@ -304,9 +305,18 @@ func runGuard(ctx context.Context, cfg config.ProfileConfig) error {
 				if cfg.MaxTotalConns > 0 {
 					pct := float64(active) * 100 / float64(cfg.MaxTotalConns)
 					if pct >= 90 {
-						log.Printf("[WARN] GAME HIGH LOAD: active=%d (%.0f%% del limite) rejects/10s=%.1f", active, pct, rate)
+						if !wasHighLoad {
+							wasHighLoad = true
+							log.Printf("[WARN] GAME HIGH LOAD: active=%d (%.0f%% del limite) rejects/10s=%.1f", active, pct, rate)
+							if adminSrv != nil {
+								adminSrv.AddEvent("overload_start", "", fmt.Sprintf("%.0f%%", pct))
+							}
+						}
+					} else if wasHighLoad {
+						wasHighLoad = false
+						log.Printf("[INFO] GAME LOAD NORMAL: active=%d (%.0f%% del limite)", active, pct)
 						if adminSrv != nil {
-							adminSrv.AddEvent("overload_start", "", fmt.Sprintf("%.0f%%", pct))
+							adminSrv.AddEvent("overload_end", "", fmt.Sprintf("%.0f%%", pct))
 						}
 					}
 				}

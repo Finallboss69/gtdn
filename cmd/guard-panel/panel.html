@@ -23,10 +23,15 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Segoe UI', 'Consolas', monospace;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 13px;
   padding: 16px;
 }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 /* ===== HEADER ===== */
 .header {
@@ -40,14 +45,33 @@ body {
 .refresh-info { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 6px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.health-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.health-ok   { background: #142a1c; color: var(--green);  border: 1px solid var(--green); }
+.health-warn { background: #2a1e08; color: var(--orange); border: 1px solid var(--orange); }
+.health-err  { background: #2a1212; color: var(--red);    border: 1px solid var(--red); }
 
 /* ===== BLOCK FORM ===== */
 .block-form {
   background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 14px; margin-bottom: 18px;
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 14px; margin-bottom: 18px;
 }
-.block-form label { color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.block-form-top {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.block-form-top label { color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.block-form-groups {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.block-group {
+  background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.block-group-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 2px;
+}
+.block-group-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 600px) { .block-form-groups { grid-template-columns: 1fr; } }
 input[type=text], select {
   background: var(--bg); border: 1px solid var(--border);
   color: var(--text); border-radius: 5px; padding: 5px 9px;
@@ -57,20 +81,22 @@ input[type=text]:focus, select:focus { outline: none; border-color: var(--accent
 input[type=text] { width: 150px; }
 select { max-width: 160px; }
 .btn {
-  border: none; border-radius: 5px; padding: 5px 14px;
-  font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  border: none; border-radius: 6px; padding: 5px 14px;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity .15s, background .15s;
 }
 .btn:hover { opacity: .8; }
-.btn-red   { background: var(--red);    color: #fff; }
-.btn-green { background: var(--green);  color: #000; }
-.btn-blue  { background: var(--accent); color: #fff; }
-.btn-sm    { padding: 3px 9px; font-size: 11px; }
+.btn-red    { background: var(--red);    color: #fff; }
+.btn-green  { background: var(--green);  color: #000; }
+.btn-blue   { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--red);    color: #fff; }
+.btn-sm     { padding: 3px 9px; font-size: 11px; }
+.btn-xs     { padding: 2px 7px; font-size: 10px; border-radius: 4px; }
 .sep { color: var(--border); margin: 0 4px; }
 
 /* ===== NODE GRID ===== */
 .section-title {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px;
+  color: var(--muted); margin-bottom: 10px; margin-top: 24px;
   display: flex; align-items: center; gap: 8px;
 }
 .node-grid {
@@ -81,20 +107,23 @@ select { max-width: 160px; }
 }
 .node-card {
   background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 12px; cursor: pointer; transition: border-color .15s, background .15s;
-  user-select: none;
+  padding: 10px 12px; cursor: pointer;
+  transition: border-color .15s, background .15s, border-left-color .3s;
+  user-select: none; border-left: 3px solid var(--border);
 }
 .node-card:hover { border-color: var(--accent); }
 .node-card.selected { border-color: var(--accent); background: var(--card2); }
+.node-card.nc-online  { border-left-color: var(--green); }
+.node-card.nc-offline { border-left-color: var(--red); }
 .nc-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 8px;
 }
-.nc-name { font-weight: 700; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.nc-name { font-weight: 700; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 .nc-badges { display: flex; gap: 4px; flex-shrink: 0; }
 .badge {
   font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  padding: 2px 6px; border-radius: 20px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 20px; text-transform: uppercase;
 }
 .b-online  { background: #142a1c; color: var(--green); }
 .b-offline { background: #2a1212; color: var(--red); }
@@ -105,25 +134,29 @@ select { max-width: 160px; }
 .nc-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; width: 36px; flex-shrink: 0; }
 .nc-val { font-family: monospace; font-size: 11px; font-weight: 600; }
 .nc-pct { font-size: 10px; margin-left: auto; }
-.nc-progwrap { flex: 1; background: var(--border); border-radius: 2px; height: 3px; }
-.nc-progbar  { height: 3px; border-radius: 2px; transition: width .4s ease; }
+.nc-progwrap { flex: 1; background: var(--border); border-radius: 4px; height: 7px; }
+.nc-progbar  { height: 7px; border-radius: 4px; transition: width .4s ease; }
 .nc-rejects { margin-top: 5px; font-size: 10px; color: var(--muted); }
 .nc-rejects span { color: var(--orange); font-family: monospace; }
+.nc-relay-val { font-family: monospace; }
+.nc-relay-val.has-relays { color: var(--accent); }
 
 /* ===== SERVICE DETAIL ===== */
-.detail-title { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.detail-title { font-size: 11px; color: var(--muted); margin-bottom: 12px; margin-top: 24px; }
 .detail-title strong { color: var(--accent); }
+.detail-sub { color: var(--muted); font-size: 10px; margin-left: 6px; font-family: monospace; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
 .service-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 10px; overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0,0,0,.4);
 }
 .card-header {
   padding: 9px 14px; display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid var(--border);
 }
-.card-header h2 { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.card-header h2 { font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
 .login .card-header h2 { color: var(--login); }
 .game  .card-header h2 { color: var(--game); }
 .badges-row { display: flex; gap: 5px; }
@@ -140,8 +173,8 @@ select { max-width: 160px; }
 .c-orange { color: var(--orange); }
 .c-red    { color: var(--red); }
 .c-muted  { color: var(--muted); }
-.prog-wrap { background: var(--border); border-radius: 2px; height: 3px; margin-top: 4px; }
-.prog-bar  { height: 3px; border-radius: 2px; transition: width .5s ease; }
+.prog-wrap { background: var(--border); border-radius: 4px; height: 7px; margin-top: 4px; }
+.prog-bar  { height: 7px; border-radius: 4px; transition: width .5s ease; }
 
 /* ===== CHARTS ===== */
 .charts-row {
@@ -150,7 +183,7 @@ select { max-width: 160px; }
 }
 .chart-box { flex: 1; min-width: 120px; }
 .chart-lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 3px; text-transform: uppercase; }
-.chart-box svg { display: block; width: 100%; height: 44px; }
+.chart-box svg { display: block; width: 100%; height: 56px; }
 
 /* ===== SYSINFO ===== */
 .sysinfo-row {
@@ -180,7 +213,7 @@ select { max-width: 160px; }
 .sec-title {
   font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
   color: var(--muted); margin-bottom: 6px;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
 }
 .cnt { background: var(--card2); color: var(--muted); border-radius: 10px; padding: 1px 6px; font-size: 10px; }
 .tbl-wrap { max-height: 200px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
@@ -192,19 +225,32 @@ th {
 }
 td { padding: 3px 5px; border-bottom: 1px solid var(--border); vertical-align: middle; font-family: monospace; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--card2); }
+tr:hover td { background: rgba(255,255,255,.03); }
 .empty td { text-align: center; color: var(--muted); padding: 12px; }
 .ip-cell { color: var(--text); font-weight: 600; }
 .tag-block { color: var(--red); font-size: 10px; font-weight: 700; }
 .tag-ok    { color: var(--green); font-size: 10px; }
 
+/* ===== RELAY CARD ===== */
+.relay-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; margin-top: 16px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.4);
+}
+.relay-card .sec-title { margin-bottom: 8px; }
+.lat-ok   { color: var(--green); }
+.lat-warn { color: var(--orange); }
+.lat-bad  { color: var(--red); }
+.relay-id { font-family: monospace; font-size: 10px; color: var(--muted); letter-spacing: .5px; }
+.relay-proxy { color: var(--accent); font-weight: 600; }
+
 /* ===== EVENTS ===== */
 .events-card {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px 14px; margin-top: 16px;
+  border-radius: 10px; padding: 10px 14px; margin-top: 24px;
 }
 .events-card .sec-title { margin-bottom: 8px; }
-#events-list { max-height: 180px; overflow-y: auto; font-size: 11px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+#events-list { max-height: 280px; overflow-y: auto; font-size: 11px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .ev-row { padding: 3px 0; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .ev-row:last-child { border-bottom: none; }
 .ev-time { color: var(--muted); font-family: monospace; min-width: 56px; font-size: 10px; }
@@ -212,10 +258,14 @@ tr:hover td { background: var(--card2); }
 .ev-src  { font-weight: 700; font-size: 9px; min-width: 34px; }
 .ev-src.login { color: var(--login); }
 .ev-src.game  { color: var(--game); }
-.ev-type { font-family: monospace; font-size: 11px; }
 .ev-ip   { color: var(--orange); font-family: monospace; }
 .ev-detail { color: var(--muted); font-size: 10px; }
 .ev-empty { color: var(--muted); padding: 10px; text-align: center; }
+.btn-ev-clear {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 4px; padding: 1px 7px; font-size: 10px; cursor: pointer; margin-left: auto;
+}
+.btn-ev-clear:hover { border-color: var(--text); color: var(--text); }
 
 /* ===== TOAST ===== */
 #toast {
@@ -231,7 +281,7 @@ tr:hover td { background: var(--card2); }
 /* ===== NO NODES ===== */
 .no-node { color: var(--muted); padding: 20px; text-align: center; font-size: 12px; }
 
-/* ===== DIAG MODAL ===== */
+/* ===== MODAL ===== */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.75);
   display: flex; align-items: center; justify-content: center;
@@ -276,6 +326,7 @@ tr:hover td { background: var(--card2); }
   <div class="logo">GUARD<span>_</span>GO <span style="font-size:12px;letter-spacing:0">Panel</span></div>
   <div class="header-right">
     <button class="btn btn-blue btn-sm" onclick="runDiag()">Test Conectividad</button>
+    <span id="health-badge" class="health-badge health-err">— ONLINE</span>
     <div class="refresh-info">
       <div class="dot"></div>
       Auto-refresh 5s &nbsp;|&nbsp; <span id="last-update">—</span>
@@ -285,24 +336,39 @@ tr:hover td { background: var(--card2); }
 
 <!-- ===== BLOQUEO / ACCIONES ===== -->
 <div class="block-form">
-  <label>Nodo</label>
-  <select id="action-node"></select>
-  <span class="sep">|</span>
-  <label>Bloquear IP</label>
-  <input type="text" id="block-ip" placeholder="1.2.3.4" maxlength="45" />
-  <select id="block-svc">
-    <option value="login">Login</option>
-    <option value="game">Game</option>
-    <option value="both">Ambos</option>
-  </select>
-  <button class="btn btn-red" onclick="manualBlock()">Bloquear vía FW</button>
-  <span class="sep">|</span>
-  <select id="unblock-svc">
-    <option value="login">Login</option>
-    <option value="game">Game</option>
-    <option value="both">Ambos</option>
-  </select>
-  <button class="btn btn-blue" onclick="unblockAll()">Desbloquear todos</button>
+  <div class="block-form-top">
+    <label>Nodo</label>
+    <select id="action-node"></select>
+  </div>
+  <div class="block-form-groups">
+    <div class="block-group">
+      <div class="block-group-title">Bloquear IP</div>
+      <div class="block-group-row">
+        <input type="text" id="block-ip" placeholder="1.2.3.4" maxlength="45" />
+        <select id="block-svc">
+          <option value="login">Login</option>
+          <option value="game">Game</option>
+          <option value="both">Ambos</option>
+        </select>
+      </div>
+      <div class="block-group-row">
+        <button class="btn btn-red" onclick="manualBlock()">Bloquear v&#237;a FW</button>
+      </div>
+    </div>
+    <div class="block-group">
+      <div class="block-group-title">Desbloquear todos</div>
+      <div class="block-group-row">
+        <select id="unblock-svc">
+          <option value="login">Login</option>
+          <option value="game">Game</option>
+          <option value="both">Ambos</option>
+        </select>
+      </div>
+      <div class="block-group-row">
+        <button class="btn btn-blue" onclick="unblockAllConfirm()">Desbloquear todos</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ===== GRID DE NODOS ===== -->
@@ -310,13 +376,13 @@ tr:hover td { background: var(--card2); }
   Nodos activos <span class="cnt" id="node-count">0</span>
 </div>
 <div class="node-grid" id="node-grid">
-  <div class="no-node">Cargando nodos…</div>
+  <div class="no-node">Cargando nodos&#8230;</div>
 </div>
 
 <!-- ===== DETALLE DEL NODO SELECCIONADO ===== -->
 <div id="detail-section" style="display:none">
-  <div class="detail-title" style="margin-bottom:12px">
-    Detalle — <strong id="detail-node-name">—</strong>
+  <div class="detail-title">
+    Detalle &#8212; <strong id="detail-node-name">&#8212;</strong><span class="detail-sub" id="detail-node-addr"></span>
   </div>
   <div class="grid">
 
@@ -331,44 +397,48 @@ tr:hover td { background: var(--card2); }
       </div>
       <div class="stats-row">
         <div class="stat">
-          <div class="stat-val c-blue" id="l-active">—</div>
+          <div class="stat-val c-blue" id="l-active">&#8212;</div>
           <div class="stat-lbl">Conexiones</div>
           <div class="stat-pct" id="l-pct"></div>
           <div class="prog-wrap"><div class="prog-bar" id="l-prog" style="width:0;background:var(--accent)"></div></div>
         </div>
         <div class="stat">
-          <div class="stat-val c-muted" id="l-maxconns">—</div>
-          <div class="stat-lbl">Límite</div>
+          <div class="stat-val c-muted" id="l-maxconns">&#8212;</div>
+          <div class="stat-lbl">L&#237;mite</div>
         </div>
         <div class="stat">
-          <div class="stat-val c-muted" id="l-ips">—</div>
+          <div class="stat-val c-muted" id="l-ips">&#8212;</div>
           <div class="stat-lbl">IPs track</div>
         </div>
         <div class="stat">
-          <div class="stat-val c-orange" id="l-rejects">—</div>
+          <div class="stat-val c-orange" id="l-rejects">&#8212;</div>
           <div class="stat-lbl">Rechazos</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val c-accent" id="l-relays">&#8212;</div>
+          <div class="stat-lbl">Relays</div>
         </div>
       </div>
       <div class="charts-row">
         <div class="chart-box">
           <div class="chart-lbl">Conexiones activas</div>
-          <svg id="chart-l-conns" viewBox="0 0 200 44" preserveAspectRatio="none">
-            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          <svg id="chart-l-conns" viewBox="0 0 200 56" preserveAspectRatio="none">
+            <text x="100" y="34" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
           </svg>
         </div>
         <div class="chart-box">
           <div class="chart-lbl">Rechazos / seg</div>
-          <svg id="chart-l-rate" viewBox="0 0 200 44" preserveAspectRatio="none">
-            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          <svg id="chart-l-rate" viewBox="0 0 200 56" preserveAspectRatio="none">
+            <text x="100" y="34" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
           </svg>
         </div>
       </div>
       <div class="sysinfo-row">
-        <div class="si"><div class="si-val" id="l-goroutines">—</div><div class="si-lbl">Goroutines</div></div>
-        <div class="si"><div class="si-val" id="l-heap">—</div><div class="si-lbl">Heap MB</div></div>
-        <div class="si"><div class="si-val" id="l-sys">—</div><div class="si-lbl">Sys MB</div></div>
-        <div class="si"><div class="si-val" id="l-gc">—</div><div class="si-lbl">GC runs</div></div>
-        <div class="si"><div class="si-val" id="l-uptime">—</div><div class="si-lbl">Uptime</div></div>
+        <div class="si"><div class="si-val" id="l-goroutines">&#8212;</div><div class="si-lbl">Goroutines</div></div>
+        <div class="si"><div class="si-val" id="l-heap">&#8212;</div><div class="si-lbl">Heap MB</div></div>
+        <div class="si"><div class="si-val" id="l-sys">&#8212;</div><div class="si-lbl">Sys MB</div></div>
+        <div class="si"><div class="si-val" id="l-gc">&#8212;</div><div class="si-lbl">GC runs</div></div>
+        <div class="si"><div class="si-val" id="l-uptime">&#8212;</div><div class="si-lbl">Uptime</div></div>
       </div>
       <div class="section">
         <div class="sec-title">IPs rastreadas <span class="cnt" id="l-ip-count">0</span></div>
@@ -376,7 +446,7 @@ tr:hover td { background: var(--card2); }
         <div class="tbl-wrap">
           <table>
             <thead><tr><th>IP</th><th>Conns</th><th>Denies</th><th>Blqs</th><th>Estado</th><th>Hasta</th><th></th></tr></thead>
-            <tbody id="tbl-l-ips"><tr class="empty"><td colspan="7">Cargando…</td></tr></tbody>
+            <tbody id="tbl-l-ips"><tr class="empty"><td colspan="7">Cargando&#8230;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -402,44 +472,44 @@ tr:hover td { background: var(--card2); }
       </div>
       <div class="stats-row">
         <div class="stat">
-          <div class="stat-val c-blue" id="g-active">—</div>
+          <div class="stat-val c-blue" id="g-active">&#8212;</div>
           <div class="stat-lbl">Conexiones</div>
           <div class="stat-pct" id="g-pct"></div>
           <div class="prog-wrap"><div class="prog-bar" id="g-prog" style="width:0;background:var(--accent)"></div></div>
         </div>
         <div class="stat">
-          <div class="stat-val c-muted" id="g-maxconns">—</div>
-          <div class="stat-lbl">Límite</div>
+          <div class="stat-val c-muted" id="g-maxconns">&#8212;</div>
+          <div class="stat-lbl">L&#237;mite</div>
         </div>
         <div class="stat">
-          <div class="stat-val c-muted" id="g-ips">—</div>
+          <div class="stat-val c-muted" id="g-ips">&#8212;</div>
           <div class="stat-lbl">IPs track</div>
         </div>
         <div class="stat">
-          <div class="stat-val c-orange" id="g-rejects">—</div>
+          <div class="stat-val c-orange" id="g-rejects">&#8212;</div>
           <div class="stat-lbl">Rechazos</div>
         </div>
       </div>
       <div class="charts-row">
         <div class="chart-box">
           <div class="chart-lbl">Conexiones activas</div>
-          <svg id="chart-g-conns" viewBox="0 0 200 44" preserveAspectRatio="none">
-            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          <svg id="chart-g-conns" viewBox="0 0 200 56" preserveAspectRatio="none">
+            <text x="100" y="34" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
           </svg>
         </div>
         <div class="chart-box">
           <div class="chart-lbl">Rechazos / seg</div>
-          <svg id="chart-g-rate" viewBox="0 0 200 44" preserveAspectRatio="none">
-            <text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
+          <svg id="chart-g-rate" viewBox="0 0 200 56" preserveAspectRatio="none">
+            <text x="100" y="34" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>
           </svg>
         </div>
       </div>
       <div class="sysinfo-row">
-        <div class="si"><div class="si-val" id="g-goroutines">—</div><div class="si-lbl">Goroutines</div></div>
-        <div class="si"><div class="si-val" id="g-heap">—</div><div class="si-lbl">Heap MB</div></div>
-        <div class="si"><div class="si-val" id="g-sys">—</div><div class="si-lbl">Sys MB</div></div>
-        <div class="si"><div class="si-val" id="g-gc">—</div><div class="si-lbl">GC runs</div></div>
-        <div class="si"><div class="si-val" id="g-uptime">—</div><div class="si-lbl">Uptime</div></div>
+        <div class="si"><div class="si-val" id="g-goroutines">&#8212;</div><div class="si-lbl">Goroutines</div></div>
+        <div class="si"><div class="si-val" id="g-heap">&#8212;</div><div class="si-lbl">Heap MB</div></div>
+        <div class="si"><div class="si-val" id="g-sys">&#8212;</div><div class="si-lbl">Sys MB</div></div>
+        <div class="si"><div class="si-val" id="g-gc">&#8212;</div><div class="si-lbl">GC runs</div></div>
+        <div class="si"><div class="si-val" id="g-uptime">&#8212;</div><div class="si-lbl">Uptime</div></div>
       </div>
       <div class="section">
         <div class="sec-title">IPs rastreadas <span class="cnt" id="g-ip-count">0</span></div>
@@ -447,7 +517,7 @@ tr:hover td { background: var(--card2); }
         <div class="tbl-wrap">
           <table>
             <thead><tr><th>IP</th><th>Conns</th><th>Denies</th><th>Blqs</th><th>Estado</th><th>Hasta</th><th></th></tr></thead>
-            <tbody id="tbl-g-ips"><tr class="empty"><td colspan="7">Cargando…</td></tr></tbody>
+            <tbody id="tbl-g-ips"><tr class="empty"><td colspan="7">Cargando&#8230;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -463,6 +533,33 @@ tr:hover td { background: var(--card2); }
     </div>
 
   </div><!-- /grid -->
+
+  <!-- RELAY LIST -->
+  <div class="relay-card">
+    <div class="sec-title">
+      Relays activos
+      <span class="cnt" id="relay-count">0</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;margin-left:4px">heartbeat cada 30s &mdash; expiran a 90s sin ping</span>
+    </div>
+    <div class="tbl-wrap" style="max-height:260px">
+      <table>
+        <thead>
+          <tr>
+            <th>Relay ID</th>
+            <th>IP p&#250;blica</th>
+            <th>Proxy actual</th>
+            <th>Latencia</th>
+            <th>Uptime</th>
+            <th>&#218;ltimo ping</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-relays">
+          <tr class="empty"><td colspan="6">Sin relays activos</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div><!-- /detail-section -->
 
 <!-- ===== EVENTOS ===== -->
@@ -470,6 +567,7 @@ tr:hover td { background: var(--card2); }
   <div class="sec-title">
     Eventos recientes (todos los nodos)
     <span class="cnt" id="events-count">0</span>
+    <button class="btn-ev-clear" onclick="eventsLocalClear()">Limpiar</button>
   </div>
   <div id="events-list"><div class="ev-empty">Sin eventos</div></div>
 </div>
@@ -493,7 +591,7 @@ tr:hover td { background: var(--card2); }
 // ===================================================================
 // ESTADO GLOBAL
 // ===================================================================
-let nodes = [];          // [{id, name}] cargados desde /api/nodes
+let nodes = [];          // [{id, name, addr}] cargados desde /api/nodes
 let selectedNodeId = null;
 let nodeStatuses = {};   // {nodeId: {login: resp, game: resp}}
 let allNodeEvents = {};  // {nodeId: [events...]}
@@ -509,7 +607,7 @@ function fmtRemaining(s){
   if(m>0) return m+'m '+sec+'s';
   return sec+'s';
 }
-function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleTimeString('es-AR',{hour12:false}); }
+function fmtDate(iso){ if(!iso) return '\u2014'; return new Date(iso).toLocaleTimeString('es-AR',{hour12:false}); }
 function fmtUptime(secs){
   if(secs<60) return secs+'s';
   if(secs<3600) return Math.floor(secs/60)+'m '+secs%60+'s';
@@ -546,6 +644,42 @@ function toast(msg,type){
 }
 
 // ===================================================================
+// CONFIRM DIALOG
+// ===================================================================
+function confirmAction(msg, fn){
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.innerHTML=`
+    <div class="modal-box" style="max-width:380px;text-align:center;">
+      <p style="margin-bottom:18px;font-size:14px;">${esc(msg)}</p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="btn btn-danger" id="_cfm-ok">Confirmar</button>
+        <button class="btn btn-blue" id="_cfm-cancel">Cancelar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_cfm-ok').onclick=()=>{ overlay.remove(); fn(); };
+  overlay.querySelector('#_cfm-cancel').onclick=()=>overlay.remove();
+  overlay.onclick=e=>{ if(e.target===overlay) overlay.remove(); };
+}
+
+// ===================================================================
+// HEALTH BADGE
+// ===================================================================
+function updateHealthBadge(){
+  const badge=document.getElementById('health-badge');
+  if(!badge||!nodes.length) return;
+  let online=0;
+  for(const n of nodes){
+    const s=nodeStatuses[n.id];
+    if(s && s.login?.ok && !s.login?.data?.error && s.game?.ok && !s.game?.data?.error) online++;
+  }
+  const total=nodes.length;
+  badge.textContent=`${online}/${total} ONLINE`;
+  badge.className='health-badge '+(online===total?'health-ok':online>0?'health-warn':'health-err');
+}
+
+// ===================================================================
 // NODE GRID
 // ===================================================================
 function buildNodeGrid(){
@@ -553,7 +687,7 @@ function buildNodeGrid(){
   document.getElementById('node-count').textContent=nodes.length;
   if(!nodes.length){ grid.innerHTML='<div class="no-node">No hay nodos configurados en nodes.json</div>'; return; }
   grid.innerHTML=nodes.map(n=>`
-    <div class="node-card" id="card-${n.id}" onclick="selectNode('${n.id}')">
+    <div class="node-card" id="card-${n.id}" data-node-id="${esc(n.id)}">
       <div class="nc-header">
         <span class="nc-name" title="${esc(n.name)}">${esc(n.name)}</span>
         <div class="nc-badges">
@@ -564,18 +698,18 @@ function buildNodeGrid(){
       <div class="nc-rows">
         <div class="nc-row">
           <span class="nc-lbl">LOGIN</span>
-          <span class="nc-val" id="nc-lv-${n.id}">—/—</span>
+          <span class="nc-val" id="nc-lv-${n.id}">\u2014/\u2014</span>
           <span class="nc-pct" id="nc-lp-${n.id}"></span>
         </div>
         <div class="nc-progwrap"><div class="nc-progbar" id="nc-lb-${n.id}" style="width:0"></div></div>
         <div class="nc-row">
           <span class="nc-lbl">GAME</span>
-          <span class="nc-val" id="nc-gv-${n.id}">—/—</span>
+          <span class="nc-val" id="nc-gv-${n.id}">\u2014/\u2014</span>
           <span class="nc-pct" id="nc-gp-${n.id}"></span>
         </div>
         <div class="nc-progwrap"><div class="nc-progbar" id="nc-gb-${n.id}" style="width:0"></div></div>
-        <div class="nc-rejects">Rechazos: <span id="nc-rej-${n.id}">—</span></div>
-        <div class="nc-rejects" id="nc-relay-row-${n.id}" style="display:none">Relays: <span id="nc-relay-${n.id}" style="color:var(--accent);font-family:monospace">0</span></div>
+        <div class="nc-rejects">Rechazos: <span id="nc-rej-${n.id}">\u2014</span></div>
+        <div class="nc-rejects">Relays: <span class="nc-relay-val" id="nc-relay-${n.id}">0</span></div>
       </div>
     </div>`).join('');
   // Populate action node selector
@@ -583,11 +717,30 @@ function buildNodeGrid(){
   sel.innerHTML=nodes.map(n=>`<option value="${n.id}">${esc(n.name)}</option>`).join('');
 }
 
+// Event delegation: node card clicks
+document.addEventListener('click', e=>{
+  const card=e.target.closest('.node-card');
+  if(card && card.dataset.nodeId) selectNode(card.dataset.nodeId);
+});
+
+// Event delegation: unblock buttons in IP/FW tables
+document.addEventListener('click', e=>{
+  const btn=e.target.closest('.btn-unblock');
+  if(btn) unblockIP(btn.dataset.ip, btn.dataset.node, btn.dataset.svc);
+});
+
 function updateNodeCard(nodeId, lResp, gResp){
   const lOk=lResp?.ok && !lResp?.data?.error;
   const gOk=gResp?.ok && !gResp?.data?.error;
   const lData=lOk?lResp.data:{};
   const gData=gOk?gResp.data:{};
+
+  // Border accent by online state
+  const card=document.getElementById('card-'+nodeId);
+  if(card){
+    card.classList.remove('nc-online','nc-offline');
+    card.classList.add((lOk||gOk)?'nc-online':'nc-offline');
+  }
 
   // Badges LOGIN / GAME
   const bl=document.getElementById('nc-bl-'+nodeId);
@@ -602,33 +755,36 @@ function updateNodeCard(nodeId, lResp, gResp){
   const lv=document.getElementById('nc-lv-'+nodeId);
   const lp=document.getElementById('nc-lp-'+nodeId);
   const lb=document.getElementById('nc-lb-'+nodeId);
-  if(lv) lv.textContent=lOk?`${lData.active_conns}/${lData.max_conns}`:'—/—';
+  if(lv) lv.textContent=lOk?`${lData.active_conns}/${lData.max_conns}`:'\u2014/\u2014';
   if(lp) lp.innerHTML=lOk?`<span style="color:${pctColor(lPct)}">${lPct.toFixed(0)}%</span>`:'';
   if(lb){ lb.style.width=(lOk?lPct:0).toFixed(1)+'%'; lb.style.background=pctColor(lPct); }
 
   const gv=document.getElementById('nc-gv-'+nodeId);
   const gp=document.getElementById('nc-gp-'+nodeId);
   const gb=document.getElementById('nc-gb-'+nodeId);
-  if(gv) gv.textContent=gOk?`${gData.active_conns}/${gData.max_conns}`:'—/—';
+  if(gv) gv.textContent=gOk?`${gData.active_conns}/${gData.max_conns}`:'\u2014/\u2014';
   if(gp) gp.innerHTML=gOk?`<span style="color:${pctColor(gPct)}">${gPct.toFixed(0)}%</span>`:'';
   if(gb){ gb.style.width=(gOk?gPct:0).toFixed(1)+'%'; gb.style.background=pctColor(gPct); }
 
   // Rejects
   const rejEl=document.getElementById('nc-rej-'+nodeId);
   const totalRej=(lData.total_rejects||0)+(gData.total_rejects||0);
-  if(rejEl) rejEl.textContent=lOk||gOk?totalRej:'—';
+  if(rejEl) rejEl.textContent=lOk||gOk?totalRej:'\u2014';
 
-  // Drain badge en login badge
+  // Drain badge on login badge
   if(bl && lOk && lData.drain_mode){
     bl.textContent='DRAIN'; bl.className='badge b-drain';
   }
 
-  // Relay count (from login status)
-  const relayCount=(lOk && lData.relay_count>0)?lData.relay_count:0;
-  const relayRow=document.getElementById('nc-relay-row-'+nodeId);
+  // Relay count — always visible
+  const relayCount=(lOk && lData.relay_count)?lData.relay_count:0;
   const relayEl=document.getElementById('nc-relay-'+nodeId);
-  if(relayRow){ relayRow.style.display=relayCount>0?'':'none'; }
-  if(relayEl){ relayEl.textContent=relayCount; }
+  if(relayEl){
+    relayEl.textContent=relayCount;
+    relayEl.className='nc-relay-val'+(relayCount>0?' has-relays':'');
+  }
+
+  updateHealthBadge();
 }
 
 // ===================================================================
@@ -648,8 +804,12 @@ function selectNode(nodeId){
   // Show detail section
   const det=document.getElementById('detail-section');
   det.style.display='block';
-  const nodeName=nodes.find(n=>n.id===nodeId)?.name||nodeId;
+  const node=nodes.find(n=>n.id===nodeId);
+  const nodeName=node?.name||nodeId;
+  const nodeAddr=node?.addr||'';
   document.getElementById('detail-node-name').textContent=nodeName;
+  const addrEl=document.getElementById('detail-node-addr');
+  if(addrEl) addrEl.textContent=nodeAddr?(' \u2014 '+nodeAddr):'';
 
   // Immediately load detail
   refreshDetail(nodeId);
@@ -662,11 +822,11 @@ function sparkline(samples, field, color, svgId){
   const svg=document.getElementById(svgId);
   if(!svg) return;
   if(!samples||samples.length<2){
-    svg.innerHTML='<text x="100" y="28" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>'; return;
+    svg.innerHTML='<text x="100" y="34" text-anchor="middle" fill="#5a5a80" font-size="10">sin datos</text>'; return;
   }
   const vals=samples.map(s=>s[field]);
   const max=Math.max(...vals,0.001);
-  const W=200,H=44,pad=3;
+  const W=200,H=56,pad=3;
   const pts=vals.map((v,i)=>{
     const x=pad+(i/(vals.length-1))*(W-pad*2);
     const y=H-pad-(v/max)*(H-pad*2);
@@ -692,7 +852,8 @@ function renderStatus(p, data, offline){
   const badge=document.getElementById(isLogin?'badge-login':'badge-game');
   if(offline){
     badge.textContent='OFFLINE'; badge.className='badge b-offline';
-    ['active','maxconns','ips','rejects'].forEach(k=>{ const el=document.getElementById(p+'-'+k); if(el) el.textContent='—'; });
+    ['active','maxconns','ips','rejects'].forEach(k=>{ const el=document.getElementById(p+'-'+k); if(el) el.textContent='\u2014'; });
+    if(isLogin){ const el=document.getElementById('l-relays'); if(el) el.textContent='\u2014'; }
     const prog=document.getElementById(p+'-prog'); if(prog) prog.style.width='0';
     const pct=document.getElementById(p+'-pct'); if(pct) pct.textContent='';
     if(isLogin){ const d=document.getElementById('badge-drain'); if(d) d.style.display='none'; }
@@ -714,6 +875,8 @@ function renderStatus(p, data, offline){
   document.getElementById(p+'-pct').innerHTML=`<span style="color:${pctColor(loadPct)}">(${loadPct.toFixed(1)}%)</span>`;
 
   if(isLogin){
+    const relEl=document.getElementById('l-relays');
+    if(relEl){ relEl.textContent=data.relay_count||0; relEl.className='stat-val '+(data.relay_count>0?'c-accent':'c-muted'); }
     const drain=document.getElementById('badge-drain');
     if(data.drain_mode){ drain.style.display='inline'; drain.textContent='DRAIN'+fmtDrainTimer(data.drain_since); }
     else{ drain.style.display='none'; }
@@ -724,7 +887,7 @@ function renderStatus(p, data, offline){
 }
 
 function renderSysinfo(p, data, offline){
-  if(offline){ ['goroutines','heap','sys','gc','uptime'].forEach(k=>{ const el=document.getElementById(p+'-'+k); if(el) el.textContent='—'; }); return; }
+  if(offline){ ['goroutines','heap','sys','gc','uptime'].forEach(k=>{ const el=document.getElementById(p+'-'+k); if(el) el.textContent='\u2014'; }); return; }
   document.getElementById(p+'-goroutines').textContent=data.goroutines;
   document.getElementById(p+'-heap').textContent=data.heap_mb.toFixed(1)+' MB';
   document.getElementById(p+'-sys').textContent=data.sys_mb.toFixed(1)+' MB';
@@ -752,8 +915,8 @@ function renderIPs(tbodyId, cntId, ips, nodeId, svc){
     <td class="ip-cell">${esc(ip.ip)}</td>
     <td>${ip.live_count}</td><td>${ip.deny_count}</td><td>${ip.block_count||0}</td>
     <td>${ip.temp_blocked?'<span class="tag-block">BLOQ</span>':'<span class="tag-ok">OK</span>'}</td>
-    <td style="color:var(--orange);font-size:10px">${ip.temp_blocked?fmtDate(ip.block_until):'—'}</td>
-    <td><button class="btn btn-green btn-sm" onclick="unblockIP('${esc(ip.ip)}','${nodeId}','${svc}')">Desbloq</button></td>
+    <td style="color:var(--orange);font-size:10px">${ip.temp_blocked?fmtDate(ip.block_until):'\u2014'}</td>
+    <td><button class="btn btn-green btn-xs btn-unblock" data-ip="${esc(ip.ip)}" data-node="${esc(nodeId)}" data-svc="${esc(svc)}">Desbloq</button></td>
   </tr>`).join('');
 }
 
@@ -766,8 +929,24 @@ function renderFW(tbodyId, cntId, list, nodeId, svc){
     <td class="ip-cell" style="color:var(--red)">${esc(item.ip)}</td>
     <td style="color:var(--orange)">${fmtRemaining(item.remaining_seconds)}</td>
     <td style="color:var(--muted);font-size:10px">${fmtDate(item.unblock_at)}</td>
-    <td><button class="btn btn-green btn-sm" onclick="unblockIP('${esc(item.ip)}','${nodeId}','${svc}')">Desbloq</button></td>
+    <td><button class="btn btn-green btn-xs btn-unblock" data-ip="${esc(item.ip)}" data-node="${esc(nodeId)}" data-svc="${esc(svc)}">Desbloq</button></td>
   </tr>`).join('');
+}
+
+// ===================================================================
+// EVENT BADGES
+// ===================================================================
+function evBadge(type){
+  const map={
+    ban:         ['var(--red)',    '#2a1212', 'BLOCK'],
+    block:       ['var(--red)',    '#2a1212', 'BLOCK'],
+    unblock:     ['var(--green)',  '#142a1c', 'UNBLOCK'],
+    unblock_all: ['var(--green)',  '#142a1c', 'UNBLOCK ALL'],
+    drain_on:    ['var(--orange)', '#2a1e08', 'DRAIN'],
+    drain_off:   ['var(--accent)', '#121828', 'RESUME'],
+  };
+  const [fg,bg,label]=map[type]||['var(--muted)','transparent',type.toUpperCase()];
+  return `<span style="color:${fg};background:${bg};padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">${label}</span>`;
 }
 
 // ===================================================================
@@ -788,10 +967,50 @@ function renderEvents(){
     <span class="ev-time">${fmtEvTime(e.t)}</span>
     <span class="ev-node" title="${esc(e.nodeName)}">${esc(e.nodeName)}</span>
     <span class="ev-src ${e.src}">${e.src.toUpperCase()}</span>
-    <span class="ev-type">${esc(e.type)}</span>
+    ${evBadge(e.type)}
     ${e.ip?`<span class="ev-ip">${esc(e.ip)}</span>`:''}
     ${e.detail?`<span class="ev-detail">${esc(e.detail)}</span>`:''}
   </div>`).join('');
+}
+
+// ===================================================================
+// RENDER RELAYS
+// ===================================================================
+function latClass(ms){ return ms<=0?'c-muted':ms<100?'lat-ok':ms<300?'lat-warn':'lat-bad'; }
+function latLabel(ms){ return ms>0?ms+'ms':'—'; }
+
+function renderRelays(relays){
+  const tbody=document.getElementById('tbl-relays');
+  const cnt=document.getElementById('relay-count');
+  if(!tbody) return;
+  if(cnt) cnt.textContent=relays.length;
+  if(!relays.length){
+    tbody.innerHTML='<tr class="empty"><td colspan="6">Sin relays activos</td></tr>';
+    return;
+  }
+  // Ordenar: mayor uptime primero
+  relays.sort((a,b)=>b.uptime_seconds-a.uptime_seconds);
+  const now=Math.floor(Date.now()/1000);
+  tbody.innerHTML=relays.map(r=>{
+    const age=r.age_seconds;
+    const pingClass=age<10?'c-green':age<45?'c-muted':'c-orange';
+    const pingLabel=age<=0?'ahora':age<60?age+'s':fmtUptime(age);
+    const shortId=r.relay_id?r.relay_id.substring(0,8)+'…':'—';
+    const proxyLabel=r.node_name||r.node_id||'—';
+    return `<tr>
+      <td class="relay-id" title="${esc(r.relay_id)}">${esc(shortId)}</td>
+      <td class="ip-cell">${esc(r.ip||'—')}</td>
+      <td class="relay-proxy">${esc(proxyLabel)}</td>
+      <td class="${latClass(r.latency_ms)}" style="font-family:monospace">${latLabel(r.latency_ms)}</td>
+      <td style="color:var(--muted);font-family:monospace">${fmtUptime(r.uptime_seconds)}</td>
+      <td class="${pingClass}" style="font-family:monospace;font-size:10px">${esc(pingLabel)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function eventsLocalClear(){
+  document.getElementById('events-list').innerHTML='<div class="ev-empty">Sin eventos recientes</div>';
+  document.getElementById('events-count').textContent='0';
 }
 
 // ===================================================================
@@ -815,7 +1034,7 @@ async function refreshDetail(nodeId){
   const lOff=!lStatus?.ok||lStatus?.data?.error;
   const gOff=!gStatus?.ok||gStatus?.data?.error;
 
-  const [lIPs,lFW,lSys,lMet, gIPs,gFW,gSys,gMet]=await Promise.all([
+  const [lIPs,lFW,lSys,lMet, gIPs,gFW,gSys,gMet, lRelays]=await Promise.all([
     apiFetch(`/api/node/${nodeId}/login/ips`),
     apiFetch(`/api/node/${nodeId}/login/blocked`),
     apiFetch(`/api/node/${nodeId}/login/sysinfo`),
@@ -824,6 +1043,7 @@ async function refreshDetail(nodeId){
     apiFetch(`/api/node/${nodeId}/game/blocked`),
     apiFetch(`/api/node/${nodeId}/game/sysinfo`),
     apiFetch(`/api/node/${nodeId}/game/metrics`),
+    apiFetch(`/api/node/${nodeId}/login/relay/list`),
   ]);
 
   renderStatus('l', lStatus?.data, lOff);
@@ -833,6 +1053,8 @@ async function refreshDetail(nodeId){
 
   if(lMet.ok&&Array.isArray(lMet.data)){ sparkline(lMet.data,'active_conns','#5b8ff0','chart-l-conns'); sparkline(lMet.data,'reject_rate','#e09040','chart-l-rate'); }
   if(gMet.ok&&Array.isArray(gMet.data)){ sparkline(gMet.data,'active_conns','#4ec97a','chart-g-conns'); sparkline(gMet.data,'reject_rate','#e09040','chart-g-rate'); }
+
+  renderRelays(lRelays.ok && Array.isArray(lRelays.data) ? lRelays.data : []);
 
   if(!lOff){ renderIPs('tbl-l-ips','l-ip-count',lIPs.data,nodeId,'login'); renderFW('tbl-l-fw','l-fw-count',lFW.data,nodeId,'login'); }
   else{ document.getElementById('tbl-l-ips').innerHTML='<tr class="empty"><td colspan="7">Offline</td></tr>'; document.getElementById('tbl-l-fw').innerHTML='<tr class="empty"><td colspan="4">Offline</td></tr>'; document.getElementById('l-ip-count').textContent='0'; document.getElementById('l-fw-count').textContent='0'; }
@@ -886,19 +1108,29 @@ async function unblockAll(){
   refresh();
 }
 
+function unblockAllConfirm(){
+  const nodeId=getActionNode();
+  const svc=document.getElementById('unblock-svc').value;
+  const nodeName=nodes.find(n=>n.id===nodeId)?.name||nodeId;
+  confirmAction(`Desbloquear TODAS las IPs en ${nodeName} / ${svc}?`, unblockAll);
+}
+
 async function manualBlock(){
   const ip=document.getElementById('block-ip').value.trim();
   const svc=document.getElementById('block-svc').value;
   const nodeId=getActionNode();
-  if(!ip){ toast('Ingresá una IP','err'); return; }
-  const svcs=svc==='both'?['login','game']:[svc];
-  for(const s of svcs){
-    const r=await apiFetch(`/api/node/${nodeId}/${s}/block`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});
-    if(!r.ok){ toast(`Error bloqueando ${ip} [${s}]`,'err'); return; }
-  }
-  toast(`Bloqueado: ${ip} [${svc}@${nodeId}]`,'ok');
-  document.getElementById('block-ip').value='';
-  refresh();
+  if(!ip){ toast('Ingres\u00e1 una IP','err'); return; }
+  const nodeName=nodes.find(n=>n.id===nodeId)?.name||nodeId;
+  confirmAction(`Bloquear IP ${ip} en ${nodeName} / ${svc}?`, async ()=>{
+    const svcs=svc==='both'?['login','game']:[svc];
+    for(const s of svcs){
+      const r=await apiFetch(`/api/node/${nodeId}/${s}/block`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});
+      if(!r.ok){ toast(`Error bloqueando ${ip} [${s}]`,'err'); return; }
+    }
+    toast(`Bloqueado: ${ip} [${svc}@${nodeId}]`,'ok');
+    document.getElementById('block-ip').value='';
+    refresh();
+  });
 }
 
 // ===================================================================
@@ -959,9 +1191,26 @@ async function init(){
     nodes=r.data;
   } else {
     nodes=[{id:'local',name:'Local'}];
+    toast('Error cargando nodos desde /api/nodes','err');
   }
   buildNodeGrid();
-  if(nodes.length>0) selectNode(nodes[0].id);
+  // Pre-seleccionar primer nodo visualmente SIN llamar refreshDetail todavía.
+  // refresh() lo hará después de refreshAllStatus(), con datos correctos.
+  if(nodes.length>0){
+    const firstId=nodes[0].id;
+    selectedNodeId=firstId;
+    const sel=document.getElementById('action-node');
+    if(sel) sel.value=firstId;
+    document.querySelectorAll('.node-card').forEach(c=>c.classList.remove('selected'));
+    const card=document.getElementById('card-'+firstId);
+    if(card) card.classList.add('selected');
+    const det=document.getElementById('detail-section');
+    det.style.display='block';
+    const node=nodes.find(n=>n.id===firstId);
+    document.getElementById('detail-node-name').textContent=node?.name||firstId;
+    const addrEl=document.getElementById('detail-node-addr');
+    if(addrEl) addrEl.textContent=node?.addr?(' \u2014 '+node.addr):'';
+  }
   await refresh();
 }
 

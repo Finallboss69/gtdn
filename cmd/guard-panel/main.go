@@ -159,15 +159,27 @@ func main() {
 		w.Write(panelHTML)
 	})
 
-	// ─── Lista de nodos (id + name, sin tokens ni URLs internas) ─────────────
+	// ─── Lista de nodos (id + name + addr, sin tokens ni URLs internas) ─────
 	type NodeInfo struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
+		Addr string `json:"addr"` // hostname/IP del nodo, extraído de login_url
+	}
+	extractHost := func(rawURL string) string {
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return ""
+		}
+		host, _, _ := net.SplitHostPort(u.Host)
+		if host == "" {
+			return u.Host
+		}
+		return host
 	}
 	mux.HandleFunc("/api/nodes", func(w http.ResponseWriter, r *http.Request) {
 		out := make([]NodeInfo, len(cfg.Nodes))
 		for i, n := range cfg.Nodes {
-			out[i] = NodeInfo{ID: n.ID, Name: n.Name}
+			out[i] = NodeInfo{ID: n.ID, Name: n.Name, Addr: extractHost(n.LoginURL)}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(out)

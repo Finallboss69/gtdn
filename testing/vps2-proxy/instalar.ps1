@@ -82,21 +82,22 @@ sc.exe description GuardGame "GUARD_GO - Proxy de game con rate limiting y autob
 # -- Firewall -------------------------------------------------------
 # Solo Allow. Windows Firewall bloquea todo lo demas por defecto.
 # NO usar Block + Allow en el mismo puerto: Block siempre gana.
+# Usar netsh advfirewall (compatible con Server 2012 R2 / PowerShell 4.0)
 Write-Host "Configurando firewall..." -ForegroundColor Green
-Remove-NetFirewallRule -DisplayName "Guard Login Public"  -ErrorAction SilentlyContinue
-Remove-NetFirewallRule -DisplayName "Guard Game Public"   -ErrorAction SilentlyContinue
-Remove-NetFirewallRule -DisplayName "Guard Admin Login"   -ErrorAction SilentlyContinue
-Remove-NetFirewallRule -DisplayName "Guard Admin Game"    -ErrorAction SilentlyContinue
+netsh advfirewall firewall delete rule name="Guard Login Public"  2>$null
+netsh advfirewall firewall delete rule name="Guard Game Public"   2>$null
+netsh advfirewall firewall delete rule name="Guard Admin Login"   2>$null
+netsh advfirewall firewall delete rule name="Guard Admin Game"    2>$null
 
-New-NetFirewallRule -DisplayName "Guard Login Public" -Direction Inbound -Protocol TCP -LocalPort 7666 -Action Allow | Out-Null
-New-NetFirewallRule -DisplayName "Guard Game Public"  -Direction Inbound -Protocol TCP -LocalPort 7667 -Action Allow | Out-Null
+netsh advfirewall firewall add rule name="Guard Login Public" dir=in action=allow protocol=TCP localport=7666 | Out-Null
+netsh advfirewall firewall add rule name="Guard Game Public"  dir=in action=allow protocol=TCP localport=7669 | Out-Null
 # Puerto 7771 abierto a todos: VPS3 lo consulta para el panel Y los clientes
 # guard-relay envian heartbeats desde IPs de jugadores. El token Bearer en el
 # codigo protege los endpoints sensibles; /api/relay/ping es el unico accesible
 # desde IPs externas (todos los demas endpoints requieren estar en admin_allow_ips).
-New-NetFirewallRule -DisplayName "Guard Admin Login"  -Direction Inbound -Protocol TCP -LocalPort 7771 -Action Allow | Out-Null
+netsh advfirewall firewall add rule name="Guard Admin Login"  dir=in action=allow protocol=TCP localport=7771 | Out-Null
 # Puerto 7772 solo accesible desde VPS3 (panel). El relay no usa este puerto.
-New-NetFirewallRule -DisplayName "Guard Admin Game"   -Direction Inbound -Protocol TCP -LocalPort 7772 -RemoteAddress "156.244.54.81" -Action Allow | Out-Null
+netsh advfirewall firewall add rule name="Guard Admin Game"   dir=in action=allow protocol=TCP localport=7772 remoteip=45.235.99.117 | Out-Null
 
 # -- Iniciar servicios ----------------------------------------------
 Write-Host "Iniciando servicios..." -ForegroundColor Green
@@ -165,7 +166,7 @@ Write-Host ""
 Write-Host "-- Puertos --" -ForegroundColor White
 foreach ($p in @(
     @{Port=7666; Desc="Login proxy (jugadores)"},
-    @{Port=7667; Desc="Game proxy (jugadores)"},
+    @{Port=7669; Desc="Game proxy (jugadores)"},
     @{Port=7771; Desc="Admin login (panel -> VPS2)"},
     @{Port=7772; Desc="Admin game  (panel -> VPS2)"}
 )) {
@@ -180,43 +181,66 @@ Write-Host "-- Reglas de firewall --" -ForegroundColor White
 
 function Check-AllowRule {
     param($nombre, $puerto)
-    $r = Get-NetFirewallRule -DisplayName $nombre -ErrorAction SilentlyContinue
-    if (-not $r)                  { ERR "Regla '$nombre' (puerto $puerto) NO existe"; return }
-    if ($r.Action -ne "Allow")    { ERR "Regla '$nombre' es $($r.Action) en lugar de Allow"; return }
-    OK "Regla '$nombre' (puerto $puerto) existe y es Allow"
+    $output = netsh advfirewall firewall show rule name="$nombre" 2>$null
+    if ($output -match "No rules match") { 
+        ERR "Regla '$nombre' (puerto $puerto) NO existe"
+        return 
+    }
+    if ($output -match "Action:\s+Allow") { 
+        OK "Regla '$nombre' (puerto $puerto) existe y es Allow"
+    } else {
+        ERR "Regla '$nombre' no es Allow"
+    }
 }
 
 function Check-AdminRemote {
     param($nombre, $ipEsperada)
-    $r = Get-NetFirewallRule -DisplayName $nombre -ErrorAction SilentlyContinue
-    if (-not $r) { return }
-    $addr = ($r | Get-NetFirewallAddressFilter -ErrorAction SilentlyContinue).RemoteAddress
-    if ($addr -contains $ipEsperada) { OK "Regla '$nombre' restringida solo a $ipEsperada" }
-    else { ERR "Regla '$nombre' tiene RemoteAddress='$($addr -join ',')' (esperado: $ipEsperada)" }
+    $output = netsh advfirewall firewall show rule name="$nombre" verbose 2>$null
+    if ($output -match "No rules match") { return }
+    if ($output -match "RemoteIP:\s+$ipEsperada") { 
+        OK "Regla '$nombre' restringida solo a $ipEsperada"
+    } elseif ($output -match "RemoteIP:\s+Any") {
+        ERR "Regla '$nombre' tiene RemoteIP=Any (esperado: $ipEsperada)"
+    }
 }
 
 function Check-NoBlockOnPort {
     param($puerto)
-    $conflict = @()
-    $allBlock = Get-NetFirewallRule -Direction Inbound -Action Block -Enabled True -ErrorAction SilentlyContinue
-    foreach ($r in $allBlock) {
-        $pf = $r | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue
-        if ($pf -and ($pf.LocalPort -eq "$puerto" -or $pf.LocalPort -eq "Any")) {
-            $conflict += $r.DisplayName
+    $allRules = netsh advfirewall firewall show rule name=all | Out-String
+    $conflicts = @()
+    $lines = $allRules -split "`n"
+    $currentRule = ""
+    $isBlock = $false
+    $hasPort = $false
+    
+    foreach ($line in $lines) {
+        if ($line -match "^Rule Name:\s+(.+)") {
+            if ($currentRule -and $isBlock -and $hasPort) {
+                $conflicts += $currentRule
+            }
+            $currentRule = $matches[1].Trim()
+            $isBlock = $false
+            $hasPort = $false
         }
+        if ($line -match "Action:\s+Block") { $isBlock = $true }
+        if ($line -match "LocalPort:\s+($puerto|Any)") { $hasPort = $true }
     }
-    if ($conflict.Count -gt 0) { ERR "Puerto $puerto tiene reglas BLOCK que anulan los Allow: $($conflict -join ', ')" }
-    else                        { OK  "Puerto $puerto sin reglas BLOCK conflictivas" }
+    
+    if ($conflicts.Count -gt 0) { 
+        ERR "Puerto $puerto tiene reglas BLOCK que anulan los Allow: $($conflicts -join ', ')"
+    } else { 
+        OK "Puerto $puerto sin reglas BLOCK conflictivas"
+    }
 }
 
 Check-AllowRule   "Guard Login Public" 7666
-Check-AllowRule   "Guard Game Public"  7667
+Check-AllowRule   "Guard Game Public"  7669
 Check-AllowRule   "Guard Admin Login"  7771
 Check-AllowRule   "Guard Admin Game"   7772
 # 7771 es abierto a todos (relay heartbeats); 7772 solo VPS3
-Check-AdminRemote "Guard Admin Game"   "156.244.54.81"
+Check-AdminRemote "Guard Admin Game"   "45.235.99.117"
 Check-NoBlockOnPort 7666
-Check-NoBlockOnPort 7667
+Check-NoBlockOnPort 7669
 Check-NoBlockOnPort 7771
 Check-NoBlockOnPort 7772
 
@@ -230,17 +254,17 @@ if ($nERR -eq 0) {
 }
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Login proxy:  0.0.0.0:7666 -> 156.244.54.81:7666 (abierto a todos)"
-Write-Host "Game proxy:   0.0.0.0:7667 -> 156.244.54.81:7666 (abierto a todos)"
+Write-Host "Login proxy:  0.0.0.0:7666 -> 45.235.99.117:7666 (abierto a todos)"
+Write-Host "Game proxy:   0.0.0.0:7669 -> 45.235.99.117:7669 (abierto a todos)"
 Write-Host "Admin login:  0.0.0.0:7771 (abierto a todos - panel + relay heartbeats)"
-Write-Host "Admin game:   0.0.0.0:7772 (solo desde 156.244.54.81 - panel)"
+Write-Host "Admin game:   0.0.0.0:7772 (solo desde 45.235.99.117 - panel)"
 Write-Host "Logs:         $dir\guard-login.log  |  $dir\guard-game.log"
 Write-Host ""
 Write-Host "IMPORTANTE - Puertos a abrir en el panel del proveedor VPS:" -ForegroundColor Yellow
 Write-Host "  7666 TCP (cualquier IP) - jugadores conectan al proxy de login" -ForegroundColor Yellow
-Write-Host "  7667 TCP (cualquier IP) - jugadores conectan al proxy de juego" -ForegroundColor Yellow
+Write-Host "  7669 TCP (cualquier IP) - jugadores conectan al proxy de juego" -ForegroundColor Yellow
 Write-Host "  7771 TCP (cualquier IP) - panel de VPS3 + heartbeats de guard-relay" -ForegroundColor Yellow
-Write-Host "  7772 TCP (cualquier IP) - panel de VPS3 (o restringir a 156.244.54.81)" -ForegroundColor Yellow
+Write-Host "  7772 TCP (cualquier IP) - panel de VPS3 (o restringir a 45.235.99.117)" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "El cliente del juego debe conectarse a: 45.235.98.209:7666" -ForegroundColor Cyan
+Write-Host "El cliente del juego debe conectarse a: 45.235.98.209:7666 (login) y 45.235.98.209:7669 (game)" -ForegroundColor Cyan
 Write-Host "  (o usar guard-relay.exe que auto-selecciona el mejor VPS)" -ForegroundColor Cyan

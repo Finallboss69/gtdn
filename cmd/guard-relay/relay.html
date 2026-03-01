@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GUARD RELAY</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d0d14;
+      --surface: #12121e;
+      --border:  #1e1e2e;
+      --green:   #00e676;
+      --orange:  #ffab40;
+      --red:     #ff5252;
+      --accent:  #7c83f7;
+      --muted:   #555570;
+      --text:    #d0d0e0;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 36px;
+      gap: 14px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .hdr {
+      width: 100%; max-width: 620px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+    }
+    .logo { font-size: 18px; font-weight: 800; letter-spacing: 2px; }
+    .logo em { color: var(--accent); font-style: normal; }
+    .spacer { flex: 1; }
+
+    /* status pill */
+    .pill {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 13px; border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      transition: border-color .3s, color .3s;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); transition: background .3s;
+    }
+    .dot.pulse { animation: blink 1.3s ease-in-out infinite; }
+    @keyframes blink {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.3; transform:scale(.7); }
+    }
+
+    /* state-based colours (applied to <body>) */
+    body.s-connected  .pill { border-color:var(--green);  color:var(--green);  }
+    body.s-connected  .dot  { background:var(--green);  }
+    body.s-connecting .pill { border-color:var(--orange); color:var(--orange); }
+    body.s-connecting .dot  { background:var(--orange); }
+    body.s-warning    .pill { border-color:var(--orange); color:var(--orange); }
+    body.s-warning    .dot  { background:var(--orange); }
+    body.s-error      .pill { border-color:var(--red);    color:var(--red);    }
+    body.s-error      .dot  { background:var(--red);    }
+
+    /* ── Card ───────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+    }
+    .card-hd {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 12px;
+    }
+
+    /* proxy card */
+    .prow { display:flex; align-items:baseline; gap:8px; margin-bottom:7px; }
+    .plbl { font-size:11px; color:var(--muted); width:66px; flex-shrink:0; }
+    .pval { font-size:13px; font-weight:600; color:var(--text); }
+    .pval.mono { font-family:'Courier New',monospace; font-size:12px; }
+    .lat-ok   { color:var(--green);  }
+    .lat-warn { color:var(--orange); }
+    .lat-bad  { color:var(--red);    }
+    .node-nm  { font-size:16px; font-weight:700; color:var(--text); margin-bottom:10px; }
+    .ph       { color:var(--muted); font-size:13px; text-align:center; padding:14px 0; }
+
+    /* ── Log ────────────────────────────────────────────────────────────── */
+    .log-wrap {
+      width:100%; max-width:620px;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:8px; overflow:hidden;
+    }
+    .log-hd {
+      display:flex; align-items:center;
+      padding:9px 14px; border-bottom:1px solid var(--border);
+    }
+    .log-title {
+      font-size:10px; font-weight:700; letter-spacing:1.5px;
+      color:var(--muted); text-transform:uppercase;
+    }
+    .log-clr {
+      margin-left:auto; background:none; border:none;
+      color:var(--muted); font-size:11px; cursor:pointer;
+      padding:1px 6px; border-radius:3px;
+    }
+    .log-clr:hover { color:var(--text); background:rgba(255,255,255,.04); }
+    .log-body {
+      max-height:200px; overflow-y:auto;
+      padding:8px 14px;
+      font-family:'Courier New',monospace; font-size:11.5px; line-height:1.7;
+    }
+    .le     { display:flex; gap:8px; }
+    .le-msg { color:var(--text); word-break:break-all; }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    .footer {
+      width:100%; max-width:620px;
+      display:flex; justify-content:center; padding-top:4px;
+    }
+    .btn-stop {
+      background:rgba(255,82,82,.08);
+      border:1px solid rgba(255,82,82,.4);
+      color:var(--red); font-size:13px; font-weight:700;
+      padding:10px 36px; border-radius:6px; cursor:pointer;
+      letter-spacing:1px; transition:all .2s;
+    }
+    .btn-stop:hover    { background:rgba(255,82,82,.18); border-color:var(--red); }
+    .btn-stop:disabled { opacity:.4; cursor:not-allowed; }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar       { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  </style>
+</head>
+<body class="s-connecting">
+
+  <div class="hdr">
+    <div class="logo">GUARD <em>RELAY</em></div>
+    <div class="spacer"></div>
+    <div class="pill">
+      <span class="dot pulse" id="dot"></span>
+      <span id="status-txt">CONECTANDO</span>
+    </div>
+  </div>
+
+  <div class="card" style="width:100%;max-width:620px;">
+    <div class="card-hd">Proxy activo</div>
+    <div id="proxy-body"><div class="ph">Buscando servidor...</div></div>
+  </div>
+
+  <div class="log-wrap">
+    <div class="log-hd">
+      <span class="log-title">Actividad</span>
+      <button class="log-clr" onclick="clearLog()">Limpiar</button>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+
+  <div class="footer">
+    <button class="btn-stop" id="btn-stop" onclick="stopRelay()">&#9632; Detener relay</button>
+  </div>
+
+  <script>
+    let logIdx = 0;
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtUp(s) {
+      if (s < 60)   return s + 's';
+      if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';
+      return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';
+    }
+
+    function latCls(ms) {
+      return ms < 100 ? 'lat-ok' : ms < 300 ? 'lat-warn' : 'lat-bad';
+    }
+
+    const STATUS_LABELS = {
+      connecting: ['CONECTANDO', true],
+      connected:  ['CONECTADO',  false],
+      warning:    ['SIN SEÑAL',  true],
+      error:      ['ERROR',      false],
+    };
+
+    function applyStatus(st) {
+      document.body.className = 's-' + st;
+      const [lbl, pulse] = STATUS_LABELS[st] || ['DESCONOCIDO', false];
+      document.getElementById('status-txt').textContent = lbl;
+      const dot = document.getElementById('dot');
+      dot.className = 'dot' + (pulse ? ' pulse' : '');
+    }
+
+    function renderProxy(d) {
+      const el = document.getElementById('proxy-body');
+      if (d.status === 'connecting') {
+        el.innerHTML = '<div class="ph">Buscando servidor...</div>';
+        return;
+      }
+      if (!d.node_name) {
+        el.innerHTML = '<div class="ph">Sin conexión</div>';
+        return;
+      }
+      el.innerHTML =
+        `<div class="node-nm">${esc(d.node_name)}</div>
+         <div class="prow"><span class="plbl">Login</span><span class="pval mono">${esc(d.node_login_addr)}</span></div>
+         <div class="prow"><span class="plbl">Juego</span><span class="pval mono">${esc(d.node_game_addr)}</span></div>
+         <div class="prow"><span class="plbl">Latencia</span><span class="pval ${latCls(d.latency_ms)}">${d.latency_ms} ms</span></div>
+         <div class="prow"><span class="plbl">Uptime</span><span class="pval">${fmtUp(d.uptime_s)}</span></div>`;
+    }
+
+    function renderLog(d) {
+      if (!d.logs) return;
+      if (d.logs.length < logIdx) {
+        logIdx = 0;
+        document.getElementById('log-body').innerHTML = '';
+      }
+      const body = document.getElementById('log-body');
+      const fresh = d.logs.slice(logIdx);
+      logIdx = d.logs.length;
+      fresh.forEach(e => {
+        const div = document.createElement('div');
+        div.className = 'le';
+        div.innerHTML = `<span class="le-msg">${esc(e.msg)}</span>`;
+        body.appendChild(div);
+      });
+      if (fresh.length) body.scrollTop = body.scrollHeight;
+    }
+
+    function clearLog() { document.getElementById('log-body').innerHTML = ''; }
+
+    async function poll() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        applyStatus(d.status);
+        renderProxy(d);
+        renderLog(d);
+      } catch {
+        applyStatus('error');
+        document.getElementById('status-txt').textContent = 'SIN CONEXIÓN';
+      }
+    }
+
+    async function stopRelay() {
+      const btn = document.getElementById('btn-stop');
+      btn.disabled = true;
+      btn.textContent = 'Deteniendo...';
+      try { await fetch('/api/stop', { method: 'POST' }); } catch {}
+      setTimeout(() => {
+        applyStatus('error');
+        document.getElementById('status-txt').textContent = 'DETENIDO';
+        btn.textContent = '■ Relay detenido';
+      }, 600);
+    }
+
+    poll();
+    setInterval(poll, 2000);
+  </script>
+</body>
+</html>

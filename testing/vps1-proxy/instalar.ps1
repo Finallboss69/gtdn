@@ -89,14 +89,14 @@ Remove-NetFirewallRule -DisplayName "Guard Admin Login"   -ErrorAction SilentlyC
 Remove-NetFirewallRule -DisplayName "Guard Admin Game"    -ErrorAction SilentlyContinue
 
 New-NetFirewallRule -DisplayName "Guard Login Public" -Direction Inbound -Protocol TCP -LocalPort 7666 -Action Allow | Out-Null
-New-NetFirewallRule -DisplayName "Guard Game Public"  -Direction Inbound -Protocol TCP -LocalPort 7667 -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Guard Game Public"  -Direction Inbound -Protocol TCP -LocalPort 7669 -Action Allow | Out-Null
 # Puerto 7771 abierto a todos: VPS3 lo consulta para el panel Y los clientes
 # guard-relay envian heartbeats desde IPs de jugadores. El token Bearer en el
 # codigo protege los endpoints sensibles; /api/relay/ping es el unico accesible
 # desde IPs externas (todos los demas endpoints requieren estar en admin_allow_ips).
 New-NetFirewallRule -DisplayName "Guard Admin Login"  -Direction Inbound -Protocol TCP -LocalPort 7771 -Action Allow | Out-Null
 # Puerto 7772 solo accesible desde VPS3 (panel). El relay no usa este puerto.
-New-NetFirewallRule -DisplayName "Guard Admin Game"   -Direction Inbound -Protocol TCP -LocalPort 7772 -RemoteAddress "156.244.54.81" -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Guard Admin Game"   -Direction Inbound -Protocol TCP -LocalPort 7772 -RemoteAddress "45.235.99.117" -Action Allow | Out-Null
 
 # -- Iniciar servicios ----------------------------------------------
 Write-Host "Iniciando servicios..." -ForegroundColor Green
@@ -165,7 +165,7 @@ Write-Host ""
 Write-Host "-- Puertos --" -ForegroundColor White
 foreach ($p in @(
     @{Port=7666; Desc="Login proxy (jugadores)"},
-    @{Port=7667; Desc="Game proxy (jugadores)"},
+    @{Port=7669; Desc="Game proxy (jugadores)"},
     @{Port=7771; Desc="Admin login (panel -> VPS1)"},
     @{Port=7772; Desc="Admin game  (panel -> VPS1)"}
 )) {
@@ -210,13 +210,13 @@ function Check-NoBlockOnPort {
 }
 
 Check-AllowRule   "Guard Login Public" 7666
-Check-AllowRule   "Guard Game Public"  7667
+Check-AllowRule   "Guard Game Public"  7669
 Check-AllowRule   "Guard Admin Login"  7771
 Check-AllowRule   "Guard Admin Game"   7772
 # 7771 es abierto a todos (relay heartbeats); 7772 solo VPS3
-Check-AdminRemote "Guard Admin Game"   "156.244.54.81"
+Check-AdminRemote "Guard Admin Game"   "45.235.99.117"
 Check-NoBlockOnPort 7666
-Check-NoBlockOnPort 7667
+Check-NoBlockOnPort 7669
 Check-NoBlockOnPort 7771
 Check-NoBlockOnPort 7772
 
@@ -230,17 +230,17 @@ if ($nERR -eq 0) {
 }
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Login proxy:  0.0.0.0:7666 -> 156.244.54.81:7666 (abierto a todos)"
-Write-Host "Game proxy:   0.0.0.0:7667 -> 156.244.54.81:7666 (abierto a todos)"
+Write-Host "Login proxy:  0.0.0.0:7666 -> 45.235.99.117:7666 (abierto a todos)"
+Write-Host "Game proxy:   0.0.0.0:7669 -> 45.235.99.117:7669 (abierto a todos)"
 Write-Host "Admin login:  0.0.0.0:7771 (abierto a todos - panel + relay heartbeats)"
-Write-Host "Admin game:   0.0.0.0:7772 (solo desde 156.244.54.81 - panel)"
+Write-Host "Admin game:   0.0.0.0:7772 (solo desde 45.235.99.117 - panel)"
 Write-Host "Logs:         $dir\guard-login.log  |  $dir\guard-game.log"
 Write-Host ""
 Write-Host "IMPORTANTE - Puertos a abrir en el panel del proveedor VPS:" -ForegroundColor Yellow
 Write-Host "  7666 TCP (cualquier IP) - jugadores conectan al proxy de login" -ForegroundColor Yellow
-Write-Host "  7667 TCP (cualquier IP) - jugadores conectan al proxy de juego" -ForegroundColor Yellow
+Write-Host "  7669 TCP (cualquier IP) - jugadores conectan al proxy de juego" -ForegroundColor Yellow
 Write-Host "  7771 TCP (cualquier IP) - panel de VPS3 + heartbeats de guard-relay" -ForegroundColor Yellow
-Write-Host "  7772 TCP (cualquier IP) - panel de VPS3 (o restringir a 156.244.54.81)" -ForegroundColor Yellow
+Write-Host "  7772 TCP (cualquier IP) - panel de VPS3 (o restringir a 45.235.99.117)" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "El cliente del juego debe conectarse a: 38.54.45.154:7666" -ForegroundColor Cyan
+Write-Host "El cliente del juego debe conectarse a: 38.54.45.154:7666 (login) y 38.54.45.154:7669 (game)" -ForegroundColor Cyan
 Write-Host "  (o usar guard-relay.exe que auto-selecciona el mejor VPS)" -ForegroundColor Cyan

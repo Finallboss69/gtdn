@@ -6,7 +6,7 @@
 |-----|----|
 | VPS1 - Proxy principal | `38.54.45.154` |
 | VPS2 - Proxy backup | `45.235.98.209` |
-| VPS3 - Servidor del juego + Panel | `156.244.54.81` |
+| VPS3 - Servidor del juego + Panel | `45.235.99.117` |
 
 **Token admin:** `G9xmK7pQ2wRs4Tn`
 > Si queres cambiarlo, cambiarlo en los 3 `config.json` y en `nodes.json` al mismo tiempo.
@@ -100,6 +100,7 @@ Get-Service GuardLogin, GuardGame
 
 # Ver si los puertos estan abiertos
 netstat -ano | findstr "7666"
+netstat -ano | findstr "7669"
 
 # Ver los logs en vivo
 Get-Content C:\guard\guard-login.log -Wait -Tail 20
@@ -129,9 +130,9 @@ Get-Content C:\guard\log-panel.txt -Wait -Tail 20
 - El token tiene que ser exactamente `G9xmK7pQ2wRs4Tn` en todos los archivos
 
 **Los jugadores se conectan pero el juego no responde:**
-- Verificar que el servidor VB6 esta corriendo en VPS3 en el puerto 7666
-- Ejecutar en VPS3: `netstat -ano | findstr "7666"` - tiene que mostrar `LISTENING`
-- Verificar firewall de VPS3: solo acepta en 7666 desde VPS1 y VPS2
+- Verificar que el servidor VB6 esta corriendo en VPS3 en los puertos 7666 (login) y 7669 (game)
+- Ejecutar en VPS3: `netstat -ano | findstr "766"` - tiene que mostrar `LISTENING` para 7666 y 7669
+- Verificar firewall de VPS3: solo acepta en 7666 y 7669 desde VPS1 y VPS2
 
 **Servicio no arranca (se ve en 2-ESTADO.bat):**
 - Hacer doble clic en **4-LOGS.bat** para ver los logs en vivo
@@ -170,11 +171,14 @@ Remove-NetFirewallRule -DisplayName "Guard*"
 
 | VPS | Puerto | Para que |
 |-----|--------|----------|
-| VPS1 | 7666, 7667 | Jugadores (login y game proxy) |
+| VPS1 | 7666 | Jugadores (proxy login) |
+| VPS1 | 7669 | Jugadores (proxy game) |
 | VPS1 | 7771 | Panel + heartbeats guard-relay (cualquier IP) |
-| VPS1 | 7772 | Panel (solo desde 156.244.54.81) |
-| VPS2 | 7666, 7667 | Jugadores (login y game proxy) |
+| VPS1 | 7772 | Panel (solo desde 45.235.99.117) |
+| VPS2 | 7666 | Jugadores (proxy login) |
+| VPS2 | 7669 | Jugadores (proxy game) |
 | VPS2 | 7771 | Panel + heartbeats guard-relay (cualquier IP) |
-| VPS2 | 7772 | Panel (solo desde 156.244.54.81) |
-| VPS3 | 7666 | Servidor VB6 (solo desde VPS1 y VPS2) |
+| VPS2 | 7772 | Panel (solo desde 45.235.99.117) |
+| VPS3 | 7666 | Login VB6 (solo desde VPS1 y VPS2) |
+| VPS3 | 7669 | Game VB6 (solo desde VPS1 y VPS2) |
 | VPS3 | 7700 | Panel web (solo localhost - abrir con navegador via RDP) |

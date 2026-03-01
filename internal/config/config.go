@@ -77,7 +77,7 @@ func DefaultLoginConfig() ProfileConfig {
 // DefaultGameConfig retorna valores por defecto para el perfil de game (más suave)
 func DefaultGameConfig() ProfileConfig {
 	return ProfileConfig{
-		ListenAddr:                "0.0.0.0:7667",
+		ListenAddr:                "0.0.0.0:7669",
 		BackendAddr:               "127.0.0.1:7669",
 		MaxLiveConnsPerIP:         3,
 		AttemptRefillPerSec:       2.0,

@@ -79,12 +79,20 @@ if ($l7700) {
     ERR "Puerto 7700 NO escucha - GuardPanel no inicio"
 }
 
-# Puerto 7666 - servidor de juego (NO gestionado por Guard)
+# Puerto 7666 - login VB6 (NO gestionado por Guard)
 $l7666 = netstat -ano | Select-String ":7666\s" | Select-String "LISTENING"
 if ($l7666) {
-    OK "Puerto 7666 LISTENING - Servidor de juego"
+    OK "Puerto 7666 LISTENING - Servidor login VB6"
 } else {
-    MANUAL "Puerto 7666 NO escucha - Servidor de juego - iniciarlo manualmente"
+    MANUAL "Puerto 7666 NO escucha - Servidor login VB6 - iniciarlo manualmente"
+}
+
+# Puerto 7669 - game VB6 (NO gestionado por Guard)
+$l7669 = netstat -ano | Select-String ":7669\s" | Select-String "LISTENING"
+if ($l7669) {
+    OK "Puerto 7669 LISTENING - Servidor game VB6"
+} else {
+    MANUAL "Puerto 7669 NO escucha - Servidor game VB6 - iniciarlo manualmente"
 }
 
 # -------------------------------------------------------
@@ -113,8 +121,10 @@ Write-Host ""
 Write-Host "-- Firewall (reglas Allow VPS1/VPS2) --" -ForegroundColor White
 
 $rules = @(
-    @{Name="Allow VPS1"; Port=7666; Remote="38.54.45.154"},
-    @{Name="Allow VPS2"; Port=7666; Remote="45.235.98.209"},
+    @{Name="Allow VPS1 Login";  Port=7666; Remote="38.54.45.154"},
+    @{Name="Allow VPS2 Login";  Port=7666; Remote="45.235.98.209"},
+    @{Name="Allow VPS1 Game";   Port=7669; Remote="38.54.45.154"},
+    @{Name="Allow VPS2 Game";   Port=7669; Remote="45.235.98.209"},
     @{Name="Allow VPS1 private"; Port=7666; Remote="192.168.154.20"}
 )
 
@@ -144,7 +154,7 @@ foreach ($rule in $rules) {
 Write-Host ""
 Write-Host "-- Firewall (BLOCK en puerto del juego) --" -ForegroundColor White
 
-foreach ($port in @(7666)) {
+foreach ($port in @(7666,7669)) {
     $conflict = @()
     Get-NetFirewallRule -Direction Inbound -Action Block -Enabled True -ErrorAction SilentlyContinue | ForEach-Object {
         $pf = $_ | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue
@@ -188,12 +198,13 @@ if ($errCount -eq 0 -and $fixCount -eq 0) {
     Write-Host "  $fixCount reparado(s)  |  $errCount requieren atencion manual" -ForegroundColor Red
     Write-Host ""
     Write-Host "  NOTA: [MANUAL] = el script no puede repararlo automaticamente" -ForegroundColor Magenta
-    Write-Host "  El puerto 7666 es del servidor de juego (VB6)" -ForegroundColor Magenta
-    Write-Host "  Guard no puede iniciar ese servidor - hacerlo manualmente" -ForegroundColor Magenta
+    Write-Host "  Los puertos 7666 y 7669 son del servidor VB6" -ForegroundColor Magenta
+    Write-Host "  Guard no puede iniciarlos - hacerlo manualmente" -ForegroundColor Magenta
 }
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Panel web:    http://127.0.0.1:7700"
-Write-Host "Juego 7666:   acepta desde 38.54.45.154 (VPS1), 45.235.98.209 (VPS2), 192.168.154.20 (VPS1 red interna)"
+Write-Host "Login 7666:   acepta desde 38.54.45.154 (VPS1), 45.235.98.209 (VPS2), 192.168.154.20 (VPS1 privada)"
+Write-Host "Game  7669:   acepta desde 38.54.45.154 (VPS1), 45.235.98.209 (VPS2)"
 Write-Host "Logs:         $dir\log-panel.txt"
 Write-Host ""

@@ -1,5 +1,5 @@
 # ============================================================
-#  GUARD_GO - Instalador VPS3 / Servidor del juego (156.244.54.81)
+#  GUARD_GO - Instalador VPS3 / Servidor del juego (45.235.99.117)
 #  Ejecutar como Administrador en PowerShell
 # ============================================================
 
@@ -73,14 +73,17 @@ Remove-NetFirewallRule -DisplayName "Allow VPS2 Login"           -ErrorAction Si
 Remove-NetFirewallRule -DisplayName "Allow VPS2 Game"            -ErrorAction SilentlyContinue
 Remove-NetFirewallRule -DisplayName "Allow VPS1"                 -ErrorAction SilentlyContinue
 Remove-NetFirewallRule -DisplayName "Allow VPS2"                 -ErrorAction SilentlyContinue
+Remove-NetFirewallRule -DisplayName "Allow VPS1 private"         -ErrorAction SilentlyContinue
 
 # Solo Allow desde VPS1 y VPS2. Todo lo demas queda bloqueado por defecto.
-# El servidor de juego corre en el puerto 7666 en esta maquina.
+# Login (7666) y Game (7669) son los puertos del servidor VB6 en esta maquina.
 # IPs publicas de VPS1 y VPS2
-New-NetFirewallRule -DisplayName "Allow VPS1" -Direction Inbound -Protocol TCP -LocalPort 7666 -RemoteAddress "38.54.45.154"  -Action Allow | Out-Null
-New-NetFirewallRule -DisplayName "Allow VPS2" -Direction Inbound -Protocol TCP -LocalPort 7666 -RemoteAddress "45.235.98.209" -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Allow VPS1 Login" -Direction Inbound -Protocol TCP -LocalPort 7666 -RemoteAddress "38.54.45.154"  -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Allow VPS2 Login" -Direction Inbound -Protocol TCP -LocalPort 7666 -RemoteAddress "45.235.98.209" -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Allow VPS1 Game"  -Direction Inbound -Protocol TCP -LocalPort 7669 -RemoteAddress "38.54.45.154"  -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Allow VPS2 Game"  -Direction Inbound -Protocol TCP -LocalPort 7669 -RemoteAddress "45.235.98.209" -Action Allow | Out-Null
 # IPs privadas (misma red del datacenter) - VPS1/VPS2 pueden aparecer con su IP interna
-New-NetFirewallRule -DisplayName "Allow VPS1 private" -Direction Inbound -Protocol TCP -LocalPort 7666 -RemoteAddress "192.168.154.20" -Action Allow | Out-Null
+New-NetFirewallRule -DisplayName "Allow VPS1 private" -Direction Inbound -Protocol TCP -LocalPort 7666,7669 -RemoteAddress "192.168.154.20" -Action Allow | Out-Null
 
 # Puerto 7700 (panel web) solo escucha en 127.0.0.1 por configuracion
 # del ejecutable, no necesita regla de firewall.
@@ -117,7 +120,8 @@ Write-Host ""
 Write-Host "-- Puertos --" -ForegroundColor White
 foreach ($p in @(
     @{Port=7700; Desc="Panel web (solo localhost)"},
-    @{Port=7666; Desc="Servidor de juego (acepta VPS1 y VPS2)"}
+    @{Port=7666; Desc="Servidor login VB6 (acepta VPS1 y VPS2)"},
+    @{Port=7669; Desc="Servidor game VB6  (acepta VPS1 y VPS2)"}
 )) {
     $l = netstat -ano | Select-String (":$($p.Port)\s") | Select-String "LISTENING"
     if ($l) { OK  "Puerto $($p.Port) LISTENING  - $($p.Desc)" }
@@ -180,10 +184,14 @@ function Check-NoBlockOnPort {
     }
 }
 
-Check-AllowRule   "Allow VPS1" 7666
-Check-AllowRule   "Allow VPS2" 7666
-Check-AllowRemote "Allow VPS1" "38.54.45.154"
-Check-AllowRemote "Allow VPS2" "45.235.98.209"
+Check-AllowRule   "Allow VPS1 Login" 7666
+Check-AllowRule   "Allow VPS2 Login" 7666
+Check-AllowRemote "Allow VPS1 Login" "38.54.45.154"
+Check-AllowRemote "Allow VPS2 Login" "45.235.98.209"
+Check-AllowRule   "Allow VPS1 Game"  7669
+Check-AllowRule   "Allow VPS2 Game"  7669
+Check-AllowRemote "Allow VPS1 Game"  "38.54.45.154"
+Check-AllowRemote "Allow VPS2 Game"  "45.235.98.209"
 Check-AllowRule   "Allow VPS1 private" 7666
 Check-AllowRemote "Allow VPS1 private" "192.168.154.20"
 
@@ -198,6 +206,7 @@ foreach ($ruleVieja in @("Block Direct Login Backend","Block Direct Game Backend
 }
 
 Check-NoBlockOnPort 7666
+Check-NoBlockOnPort 7669
 
 # -- Resumen -----------------------------------------------
 Write-Host ""
@@ -210,7 +219,8 @@ if ($nERR -eq 0) {
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Panel web:    http://127.0.0.1:7700"
-Write-Host "Juego 7666:   acepta desde 38.54.45.154 (VPS1), 45.235.98.209 (VPS2), 192.168.154.20 (VPS1 red interna)"
+Write-Host "Login 7666:   acepta desde 38.54.45.154 (VPS1), 45.235.98.209 (VPS2), 192.168.154.20 (VPS1 privada)"
+Write-Host "Game  7669:   acepta desde 38.54.45.154 (VPS1), 45.235.98.209 (VPS2)"
 Write-Host "Logs:         $dir\log-panel.txt"
 Write-Host ""
-Write-Host "IMPORTANTE: El servidor de juego tiene que estar corriendo en el puerto 7666"
+Write-Host "IMPORTANTE: El servidor VB6 tiene que estar corriendo en puerto 7666 (login) y 7669 (game)" -ForegroundColor Yellow

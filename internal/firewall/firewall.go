@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os/exec"
 	"strings"
@@ -69,7 +70,7 @@ func (m *Manager) BlockIP(ip string) error {
 	// Verificar límite de IPs bloqueadas
 	if len(m.scheduled) >= maxBlockedIPs {
 		m.mu.Unlock()
-		// No retornar error para evitar spam de logs
+		log.Printf("[WARN] firewall: límite de %d IPs bloqueadas alcanzado, descartando ban de %s", maxBlockedIPs, ip)
 		return nil
 	}
 

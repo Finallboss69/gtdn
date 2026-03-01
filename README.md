@@ -255,9 +255,11 @@ game.exe → 127.0.0.1:17667 → guard-relay.exe → VPS1:7667 → Servidor de j
 
 1. **Selección de nodo**: al iniciar, prueba la latencia TCP de todos los VPS en paralelo y se conecta al más rápido.
 2. **Proxy local**: crea dos listeners en `127.0.0.1:17666` (login) y `127.0.0.1:17667` (game). El juego debe apuntar a estos puertos en lugar de los del servidor.
-3. **Heartbeat**: cada 30 segundos envía un ping al admin del VPS para que el panel lo cuente como relay activo.
-4. **Monitor de salud**: cada 60 segundos re-verifica la latencia. Si el VPS actual falla o supera 500 ms, cambia automáticamente al mejor disponible sin cortar conexiones existentes.
-5. **Salida limpia**: al presionar `Ctrl+C` se detiene ordenadamente.
+3. **UI web local**: levanta un servidor HTTP en `127.0.0.1:17770` y abre el browser automáticamente con el panel del relay.
+4. **Heartbeat**: cada 30 segundos envía un ping al admin del VPS para que el panel lo cuente como relay activo.
+5. **Monitor de salud**: cada 60 segundos re-verifica la latencia. Si el VPS actual falla o supera 500 ms, cambia automáticamente al mejor disponible sin cortar conexiones existentes.
+6. **Instancia única**: si ya hay un relay corriendo, al ejecutarlo de nuevo solo abre el browser con la UI ya activa.
+7. **Salida limpia**: desde el botón "Detener relay" en la UI o cerrando la ventana; hace graceful shutdown.
 
 ### Configuración: `relay.json`
 
@@ -289,15 +291,16 @@ Copiar `relay.json.example` a `relay.json` (en el mismo directorio que `guard-re
 | `admin_url` | URL del admin del guard-login en el VPS (para heartbeat) |
 | `token` | Token de admin del VPS (mismo que `admin_token` en config.json) |
 
-### Salida de consola
+### Interfaz web local
 
-```
-[GUARD RELAY] Probando 2 nodo(s)...
-[GUARD RELAY] Conectado a VPS1 (38.54.45.154:7666) | latencia: 7ms
-[GUARD RELAY] Login local:  127.0.0.1:17666
-[GUARD RELAY] Juego  local: 127.0.0.1:17667
-[GUARD RELAY] Presiona Ctrl+C para salir
-```
+Al iniciar, `guard-relay.exe` abre automáticamente el browser en `http://127.0.0.1:17770` con:
+
+- **Estado de conexión**: pill con indicador animado (CONECTANDO / CONECTADO / SIN SEÑAL / ERROR)
+- **Proxy activo**: nombre del nodo, dirección login/game, latencia en ms, uptime
+- **Log de actividad**: mensajes de eventos (cambios de nodo, errores, etc.) con botón "Limpiar"
+- **Botón "Detener relay"**: detiene el relay limpiamente desde la UI
+
+Si `relay.json` no se encuentra, muestra un popup de error y cierra.
 
 ### Distribución a jugadores
 
@@ -305,8 +308,9 @@ Entregar al jugador:
 - `guard-relay.exe`
 - `relay.json` (pre-configurado con los VPS)
 
-El jugador solo tiene que ejecutar `guard-relay.exe` antes de abrir el juego, y configurar
-el juego para conectarse a `127.0.0.1` en lugar de la IP del servidor.
+El jugador solo tiene que ejecutar `guard-relay.exe` antes de abrir el juego. El browser
+se abre solo con el panel de estado. Configurar el juego para conectarse a `127.0.0.1`
+en lugar de la IP del servidor.
 
 ### Visibilidad en el panel
 
@@ -359,7 +363,8 @@ Acceso: loopback siempre; IPs externas requieren `Authorization: Bearer <admin_t
 | `/api/metrics` | GET | Historial de muestras (ultimos 6 min, 10s por muestra) |
 | `/api/health` | GET | Health check: `{"status":"ok","uptime_seconds":N}` |
 | `/api/events` | GET | Log de eventos recientes (ring buffer 200 eventos) |
-| `/api/relay/ping` | POST | Heartbeat de guard-relay - abierto a cualquier IP, requiere Bearer. Body: `{"relay_id":"<uuid>"}` |
+| `/api/relay/ping` | POST | Heartbeat de guard-relay - requiere Bearer. Body: `{"relay_id":"<uuid>","node_id":"vps1","node_name":"VPS1","latency_ms":7}` |
+| `/api/relay/list` | GET  | Lista de relays activos con detalle: relay_id, ip, node_id, node_name, latency_ms, last_seen, age_seconds, first_seen, uptime_seconds |
 
 ### guard-panel
 
