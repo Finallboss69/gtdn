@@ -1,0 +1,3 @@
+@echo off
+echo Abriendo logs del panel en tiempo real (Ctrl+C para salir)...
+powershell -NoExit -Command "Get-Content C:\guard\log-panel.txt -Wait -Tail 30"

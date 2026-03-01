@@ -1,0 +1,18 @@
+{
+  "nodes": [
+    {
+      "id":        "vps1",
+      "name":      "VPS1 - Proxy Principal (38.54.45.154)",
+      "login_url": "http://38.54.45.154:7771",
+      "game_url":  "http://38.54.45.154:7772",
+      "token":     "G9xmK7pQ2wRs4Tn"
+    },
+    {
+      "id":        "vps2",
+      "name":      "VPS2 - Proxy Backup (45.235.98.209)",
+      "login_url": "http://45.235.98.209:7771",
+      "game_url":  "http://45.235.98.209:7772",
+      "token":     "G9xmK7pQ2wRs4Tn"
+    }
+  ]
+}

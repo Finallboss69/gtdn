@@ -124,21 +124,24 @@ type Server struct {
 	loadPctFn    func() float64 // opcional: retorna % de carga actual
 	allowedIPs   []string       // IPs adicionales permitidas (además de loopback)
 	authToken    string         // si no vacío, requiere Authorization: Bearer <token> para IPs no-loopback
+	relayMu      sync.Mutex
+	relayRegistry map[string]time.Time // relay_id → last_seen
 }
 
 // New crea un Server de administración.
 func New(lim *limiter.Limiter, fw *firewall.Manager, profile string,
 	drainFn func() bool, rejectFn func() uint64, maxConns int) *Server {
 	return &Server{
-		lim:       lim,
-		fw:        fw,
-		profile:   profile,
-		drainFn:   drainFn,
-		rejectFn:  rejectFn,
-		maxConns:  maxConns,
-		startTime: time.Now(),
-		history:   &metricsHistory{},
-		evLog:     &eventLog{},
+		lim:           lim,
+		fw:            fw,
+		profile:       profile,
+		drainFn:       drainFn,
+		rejectFn:      rejectFn,
+		maxConns:      maxConns,
+		startTime:     time.Now(),
+		history:       &metricsHistory{},
+		evLog:         &eventLog{},
+		relayRegistry: make(map[string]time.Time),
 	}
 }
 
@@ -180,6 +183,7 @@ func (s *Server) Start(ctx context.Context, listenAddr string) error {
 	mux.HandleFunc("/api/health",      s.handleHealth)
 	mux.HandleFunc("/api/unblock-all", s.handleUnblockAll)
 	mux.HandleFunc("/api/events",      s.handleEvents)
+	mux.HandleFunc("/api/relay/ping",  s.handleRelayPing)
 
 	srv := &http.Server{
 		Addr:         listenAddr,
@@ -203,6 +207,20 @@ func (s *Server) Start(ctx context.Context, listenAddr string) error {
 			case <-tick.C:
 				active, _ := s.lim.Stats()
 				s.history.record(active, s.rejectFn())
+			}
+		}
+	}()
+
+	// Cleanup relay registry: remove entries older than 90s
+	go func() {
+		tick := time.NewTicker(60 * time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				s.cleanRelayRegistry()
 			}
 		}
 	}()
@@ -250,6 +268,10 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		loadPct = float64(active) * 100.0 / float64(s.maxConns)
 	}
 
+	s.relayMu.Lock()
+	relayCount := len(s.relayRegistry)
+	s.relayMu.Unlock()
+
 	type Resp struct {
 		Profile      string  `json:"profile"`
 		ActiveConns  int     `json:"active_conns"`
@@ -259,6 +281,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		DrainSince   int64   `json:"drain_since"`
 		MaxConns     int     `json:"max_conns"`
 		LoadPct      float64 `json:"load_pct"`
+		RelayCount   int     `json:"relay_count"`
 	}
 	writeJSON(w, Resp{
 		Profile:      s.profile,
@@ -269,6 +292,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		DrainSince:   drainSinceUnix,
 		MaxConns:     s.maxConns,
 		LoadPct:      loadPct,
+		RelayCount:   relayCount,
 	})
 }
 
@@ -450,12 +474,61 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, s.evLog.get())
 }
 
+// handleRelayPing registra un heartbeat de un cliente relay.
+// Cualquier IP puede llamarlo, pero el token siempre es requerido.
+func (s *Server) handleRelayPing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.authToken == "" || r.Header.Get("Authorization") != "Bearer "+s.authToken {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="guard-admin"`)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req struct {
+		RelayID string `json:"relay_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RelayID == "" {
+		http.Error(w, "bad request: se requiere relay_id", http.StatusBadRequest)
+		return
+	}
+	s.relayMu.Lock()
+	s.relayRegistry[req.RelayID] = time.Now()
+	s.relayMu.Unlock()
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+// cleanRelayRegistry elimina entradas con last_seen mayor a 90s.
+func (s *Server) cleanRelayRegistry() {
+	cutoff := time.Now().Add(-90 * time.Second)
+	s.relayMu.Lock()
+	defer s.relayMu.Unlock()
+	for id, t := range s.relayRegistry {
+		if t.Before(cutoff) {
+			delete(s.relayRegistry, id)
+		}
+	}
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// accessControl verifica que la conexión venga de loopback o de una IP permitida.
-// Para IPs no-loopback, verifica el token Bearer si está configurado.
+// accessControl verifica que la conexión sea legítima antes de pasar al handler.
+//
+// Reglas (en orden):
+//  1. /api/relay/ping → siempre pasa (handler hace su propio check de token)
+//  2. Loopback         → siempre permitido, sin token
+//  3. Token válido     → permitido desde cualquier IP (token ES la seguridad)
+//  4. Sin token config → solo permitido si la IP está en allowedIPs
+//  5. Todo lo demás    → 403 / 401
 func (s *Server) accessControl(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// relay/ping tiene su propio auth; lo pasamos sin más checks de IP.
+		if r.URL.Path == "/api/relay/ping" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			http.Error(w, "forbidden", http.StatusForbidden)
@@ -466,29 +539,34 @@ func (s *Server) accessControl(next http.Handler) http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		isLoopback := ip.IsLoopback()
-		allowed := isLoopback
-		if !allowed {
-			for _, aip := range s.allowedIPs {
-				if ip.String() == aip {
-					allowed = true
-					break
-				}
-			}
-		}
-		if !allowed {
-			http.Error(w, "forbidden", http.StatusForbidden)
+
+		// Loopback siempre permitido, sin token.
+		if ip.IsLoopback() {
+			next.ServeHTTP(w, r)
 			return
 		}
-		// Token requerido solo para IPs no-loopback cuando está configurado
-		if s.authToken != "" && !isLoopback {
-			if r.Header.Get("Authorization") != "Bearer "+s.authToken {
-				w.Header().Set("WWW-Authenticate", `Bearer realm="guard-admin"`)
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
+
+		// Si hay token configurado, token correcto = acceso desde cualquier IP.
+		if s.authToken != "" {
+			if r.Header.Get("Authorization") == "Bearer "+s.authToken {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// Token incorrecto o ausente.
+			w.Header().Set("WWW-Authenticate", `Bearer realm="guard-admin"`)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Sin token configurado: caer a IP allowlist.
+		// Usamos ip.Equal(net.ParseIP(aip)) para manejar IPv4-mapped IPv6.
+		for _, aip := range s.allowedIPs {
+			if ip.Equal(net.ParseIP(aip)) {
+				next.ServeHTTP(w, r)
 				return
 			}
 		}
-		next.ServeHTTP(w, r)
+		http.Error(w, "forbidden", http.StatusForbidden)
 	})
 }
 

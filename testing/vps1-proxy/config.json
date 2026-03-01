@@ -1,0 +1,40 @@
+{
+  "login": {
+    "listen_addr":             "0.0.0.0:7666",
+    "backend_addr":            "156.244.54.81:7666",
+    "max_live_conns_per_ip":   2,
+    "attempt_refill_per_sec":  1.0,
+    "attempt_burst":           4,
+    "denies_before_tempblock": 10,
+    "tempblock_seconds":       90,
+    "max_total_conns":         2000,
+    "idle_timeout_seconds":    15,
+    "stale_after_seconds":     180,
+    "cleanup_every_seconds":   60,
+    "enable_firewall_autoban": true,
+    "firewall_block_seconds":  900,
+    "log_level":               "info",
+    "admin_listen_addr":       "0.0.0.0:7771",
+    "admin_allow_ips":         ["156.244.54.81", "192.168.118.25"],
+    "admin_token":             "G9xmK7pQ2wRs4Tn"
+  },
+  "game": {
+    "listen_addr":             "0.0.0.0:7667",
+    "backend_addr":            "156.244.54.81:7666",
+    "max_live_conns_per_ip":   3,
+    "attempt_refill_per_sec":  2.0,
+    "attempt_burst":           6,
+    "denies_before_tempblock": 15,
+    "tempblock_seconds":       60,
+    "max_total_conns":         4000,
+    "idle_timeout_seconds":    30,
+    "stale_after_seconds":     180,
+    "cleanup_every_seconds":   60,
+    "enable_firewall_autoban": true,
+    "firewall_block_seconds":  600,
+    "log_level":               "info",
+    "admin_listen_addr":       "0.0.0.0:7772",
+    "admin_allow_ips":         ["156.244.54.81", "192.168.118.25"],
+    "admin_token":             "G9xmK7pQ2wRs4Tn"
+  }
+}

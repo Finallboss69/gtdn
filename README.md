@@ -1,4 +1,4 @@
-# GUARD_GO — TCP Guard Proxy (TDN)
+# GUARD_GO - TCP Guard Proxy (TDN)
 
 Proxy TCP de alto rendimiento en Go 1.22+ para Windows Server 2019 x64 que protege un servidor
 de juego (VB6) frente a connection floods, ataques de fuerza bruta y sobrecarga.
@@ -15,6 +15,16 @@ Cliente → 0.0.0.0:7667 (guard-game)  → 127.0.0.1:7669 (Game interno)
 El guard escucha en interfaces públicas y reenvía solo el tráfico permitido al backend en
 localhost. Incluye un panel web de administración en tiempo real.
 
+### Con guard-relay (jugadores detrás de NAT)
+
+```
+game.exe → 127.0.0.1:17666 → guard-relay.exe → VPS1:7666 → Servidor de juego (VPS3)
+game.exe → 127.0.0.1:17667 → guard-relay.exe → VPS1:7667 → Servidor de juego (VPS3)
+```
+
+`guard-relay.exe` corre en la máquina del jugador y crea un proxy local que tuneliza el
+tráfico por la VPS con menor latencia. No requiere UPnP ni configuración de router.
+
 ## Estructura del Proyecto
 
 ```
@@ -22,15 +32,17 @@ localhost. Incluye un panel web de administración en tiempo real.
   /guard-login/    # Ejecutable para login (rate limits agresivos + modo drain)
   /guard-game/     # Ejecutable para game (rate limits suaves + detección carga alta)
   /guard-panel/    # Panel de administración web (proxy reverso hacia ambos guards)
+  /guard-relay/    # Cliente relay para jugadores detrás de NAT
   /guard/          # Ejecutable legacy (opcional)
 /internal/
-  /admin/          # API HTTP de administración (eventos, health, métricas, unblock-all)
+  /admin/          # API HTTP de administración (eventos, health, métricas, relay registry)
   /config/         # Manejo de configuración multi-perfil + validación
   /common/         # Funciones compartidas (logging, etc.)
   /firewall/       # Gestión de reglas Windows Firewall
   /limiter/        # Rate limiting, límites por IP, backoff exponencial de bans
   /proxy/          # Proxy TCP transparente con backoff adaptativo
 config.json        # Configuración con perfiles "login" y "game"
+relay.json.example # Ejemplo de configuración para guard-relay
 CHANGELOG.md       # Historial de cambios
 ```
 
@@ -65,9 +77,9 @@ En el `config.json` de cada VPS guard, apuntar `backend_addr` al servidor real y
 }
 ```
 
-- `admin_listen_addr: "0.0.0.0:7771"` — la API admin escucha en todas las interfaces (no solo localhost)
-- `admin_allow_ips` — solo esta IP puede conectarse a la API admin remotamente
-- `admin_token` — token que el panel usa para autenticarse
+- `admin_listen_addr: "0.0.0.0:7771"` - la API admin escucha en todas las interfaces (no solo localhost)
+- `admin_token` - token que el panel usa para autenticarse. **Con token configurado, cualquier IP que presente el Bearer correcto tiene acceso** (el token es la seguridad principal)
+- `admin_allow_ips` - lista de IPs permitidas **sin token**. Solo actúa como fallback cuando `admin_token` está vacío. Si hay token, esta lista se ignora para conexiones que presenten el Bearer correcto
 
 ### Paso 2: Configurar HAProxy (balanceador)
 
@@ -108,14 +120,14 @@ En la máquina donde corre `guard-panel.exe`, copiar `nodes.json.example` a `nod
   "nodes": [
     {
       "id":        "vps1",
-      "name":      "VPS1 — Francia",
+      "name":      "VPS1 - Francia",
       "login_url": "http://185.vps1.ip:7771",
       "game_url":  "http://185.vps1.ip:7772",
       "token":     "token-secreto-cambia-esto"
     },
     {
       "id":        "vps2",
-      "name":      "VPS2 — Alemania",
+      "name":      "VPS2 - Alemania",
       "login_url": "http://185.vps2.ip:7771",
       "game_url":  "http://185.vps2.ip:7772",
       "token":     "token-secreto-cambia-esto"
@@ -140,15 +152,14 @@ Si no existe `nodes.json`, el panel funciona igual que antes apuntando a `127.0.
 ## Compilación
 
 ```bash
-# Compilar los tres ejecutables:
-go build -o guard-login.exe ./cmd/guard-login
-go build -o guard-game.exe  ./cmd/guard-game
-go build -o guard-panel.exe ./cmd/guard-panel
+# Compilar todos los ejecutables (recomendado):
+.\build.ps1
 
-# Con optimizaciones (recomendado para producción):
+# O manualmente con optimizaciones:
 go build -ldflags "-s -w" -o guard-login.exe ./cmd/guard-login
 go build -ldflags "-s -w" -o guard-game.exe  ./cmd/guard-game
 go build -ldflags "-s -w" -o guard-panel.exe ./cmd/guard-panel
+go build -ldflags "-s -w" -o guard-relay.exe ./cmd/guard-relay
 ```
 
 ## Configuración
@@ -166,7 +177,7 @@ se usan los valores por defecto.
 | attempt_refill_per_sec | 1.0 | Recarga del token bucket (intentos/s) |
 | attempt_burst | 4 | Capacidad del token bucket |
 | denies_before_tempblock | 10 | Rechazos antes de bloqueo temporal |
-| tempblock_seconds | 90 | Duración base del bloqueo temporal (s) — crece exponencialmente |
+| tempblock_seconds | 90 | Duración base del bloqueo temporal (s) - crece exponencialmente |
 | max_total_conns | 2000 | Límite global de conexiones |
 | idle_timeout_seconds | 15 | Timeout de inactividad (s) |
 | stale_after_seconds | 180 | Eliminar IPs sin actividad tras (s) |
@@ -189,7 +200,7 @@ se usan los valores por defecto.
 | attempt_refill_per_sec | 2.0 | Recarga del token bucket (intentos/s) |
 | attempt_burst | 6 | Capacidad del token bucket |
 | denies_before_tempblock | 15 | Rechazos antes de bloqueo temporal |
-| tempblock_seconds | 60 | Duración base del bloqueo temporal (s) — crece exponencialmente |
+| tempblock_seconds | 60 | Duración base del bloqueo temporal (s) - crece exponencialmente |
 | max_total_conns | 4000 | Límite global de conexiones |
 | idle_timeout_seconds | 30 | Timeout de inactividad (s) |
 | stale_after_seconds | 180 | Eliminar IPs sin actividad tras (s) |
@@ -210,11 +221,12 @@ se usan los valores por defecto.
 guard-login.exe
 guard-game.exe
 guard-panel.exe   # Panel web en http://127.0.0.1:7700
+guard-relay.exe   # Relay cliente para jugadores (requiere relay.json)
 ```
 
-Detener con `Ctrl+C` (SIGINT) o enviando SIGTERM; el proxy hace **graceful shutdown**.
+Detener con `Ctrl+C`; todos hacen **graceful shutdown**.
 
-### Flags disponibles
+### Flags disponibles (guard-login / guard-game)
 
 ```bash
 guard-login.exe -config ruta/config.json -profile login -log-level debug
@@ -224,6 +236,85 @@ guard-game.exe  -config ruta/config.json -profile game  -log-level info
 - `-config`: Ruta al archivo de configuración (default: busca config.json)
 - `-profile`: Perfil a usar: login o game (default: detecta del nombre del ejecutable)
 - `-log-level`: Override del nivel de log (debug|info|warn|error)
+
+---
+
+## guard-relay - Cliente relay para jugadores detrás de NAT
+
+`guard-relay.exe` es un ejecutable liviano que corre en la PC del jugador y permite conectarse
+al servidor de juego a través de la red de VPS, sin necesidad de configurar el router ni UPnP.
+
+### Flujo de tráfico
+
+```
+game.exe → 127.0.0.1:17666 → guard-relay.exe → VPS1:7666 → Servidor de juego
+game.exe → 127.0.0.1:17667 → guard-relay.exe → VPS1:7667 → Servidor de juego
+```
+
+### Comportamiento automático
+
+1. **Selección de nodo**: al iniciar, prueba la latencia TCP de todos los VPS en paralelo y se conecta al más rápido.
+2. **Proxy local**: crea dos listeners en `127.0.0.1:17666` (login) y `127.0.0.1:17667` (game). El juego debe apuntar a estos puertos en lugar de los del servidor.
+3. **Heartbeat**: cada 30 segundos envía un ping al admin del VPS para que el panel lo cuente como relay activo.
+4. **Monitor de salud**: cada 60 segundos re-verifica la latencia. Si el VPS actual falla o supera 500 ms, cambia automáticamente al mejor disponible sin cortar conexiones existentes.
+5. **Salida limpia**: al presionar `Ctrl+C` se detiene ordenadamente.
+
+### Configuración: `relay.json`
+
+Copiar `relay.json.example` a `relay.json` (en el mismo directorio que `guard-relay.exe`):
+
+```json
+{
+  "login_local": "127.0.0.1:17666",
+  "game_local":  "127.0.0.1:17667",
+  "nodes": [
+    {
+      "id":         "vps1",
+      "name":       "VPS1",
+      "login_addr": "38.54.45.154:7666",
+      "game_addr":  "38.54.45.154:7667",
+      "admin_url":  "http://38.54.45.154:7771",
+      "token":      "token-secreto-cambia-esto"
+    }
+  ]
+}
+```
+
+| Campo | Descripción |
+|-------|-------------|
+| `login_local` | Puerto local para login (el juego se conecta aquí) |
+| `game_local` | Puerto local para game |
+| `login_addr` | IP:Puerto público del guard-login en el VPS |
+| `game_addr` | IP:Puerto público del guard-game en el VPS |
+| `admin_url` | URL del admin del guard-login en el VPS (para heartbeat) |
+| `token` | Token de admin del VPS (mismo que `admin_token` en config.json) |
+
+### Salida de consola
+
+```
+[GUARD RELAY] Probando 2 nodo(s)...
+[GUARD RELAY] Conectado a VPS1 (38.54.45.154:7666) | latencia: 7ms
+[GUARD RELAY] Login local:  127.0.0.1:17666
+[GUARD RELAY] Juego  local: 127.0.0.1:17667
+[GUARD RELAY] Presiona Ctrl+C para salir
+```
+
+### Distribución a jugadores
+
+Entregar al jugador:
+- `guard-relay.exe`
+- `relay.json` (pre-configurado con los VPS)
+
+El jugador solo tiene que ejecutar `guard-relay.exe` antes de abrir el juego, y configurar
+el juego para conectarse a `127.0.0.1` en lugar de la IP del servidor.
+
+### Visibilidad en el panel
+
+Cada VPS muestra un contador **Relays** en su tarjeta del panel cuando hay clientes relay
+conectados. Se actualiza automáticamente (los relays aparecen ~30s después de iniciar, y
+desaparecen ~90s después de cerrarse).
+
+---
 
 ## Panel de Administración
 
@@ -237,6 +328,7 @@ El panel web se accede en `http://127.0.0.1:7700` y muestra en tiempo real:
 - **Log de eventos recientes** (bans, drain on/off, sobrecarga, desbloqueos)
 - **Badge DRAIN** con timer `MM:SS` para login
 - **Badge CARGA ALTA** para game cuando la carga supera el 80%
+- **Contador Relays** en cada tarjeta de nodo cuando hay clientes guard-relay conectados
 
 ### Acciones disponibles en el panel
 
@@ -245,38 +337,54 @@ El panel web se accede en `http://127.0.0.1:7700` y muestra en tiempo real:
 | Bloquear IP vía FW | Agrega la IP a las reglas de Windows Firewall |
 | Desbloquear (por IP) | Quita el bloqueo temporal del limiter y del FW |
 | **Desbloquear todos** | Libera todos los bloqueos temporales del limiter de una vez |
+| **Test Conectividad** | Desde el panel, prueba TCP + HTTP a cada nodo. Muestra latencia TCP, HTTP status, y body de respuesta - permite diagnosticar si el problema es firewall (TCP fail), autenticacion (HTTP 401/403) o el servicio (HTTP 5xx) |
 
 ## API de Administración
 
-Cada guard expone una API HTTP en `localhost` (solo accesible localmente).
+### guard-login / guard-game (por nodo)
 
-### Login: `http://127.0.0.1:7771/api/`
-### Game: `http://127.0.0.1:7772/api/`
+Login: `http://<vps>:7771/api/` - Game: `http://<vps>:7772/api/`
+
+Acceso: loopback siempre; IPs externas requieren `Authorization: Bearer <admin_token>`.
 
 | Endpoint | Método | Descripción |
 |----------|--------|-------------|
-| `/api/status` | GET | Estado del servicio (conns, drain, load_pct, drain_since) |
+| `/api/status` | GET | Estado del servicio (conns, drain, load_pct, drain_since, relay_count) |
 | `/api/ips` | GET | Lista de IPs rastreadas con block_count |
-| `/api/blocked` | GET | IPs bloqueadas vía Windows Firewall |
-| `/api/unblock` | POST | Desbloquear una IP específica `{"ip":"1.2.3.4"}` |
-| `/api/block` | POST | Bloquear una IP vía FW `{"ip":"1.2.3.4"}` |
+| `/api/blocked` | GET | IPs bloqueadas via Windows Firewall |
+| `/api/unblock` | POST | Desbloquear una IP especifica `{"ip":"1.2.3.4"}` |
+| `/api/block` | POST | Bloquear una IP via FW `{"ip":"1.2.3.4"}` |
+| `/api/unblock-all` | POST | Libera todos los bloqueos temporales |
 | `/api/sysinfo` | GET | Goroutines, heap, GC, uptime |
-| `/api/metrics` | GET | Historial de muestras (últimos 6 min) |
-| **`/api/health`** | GET | Health check: `{"status":"ok","uptime_seconds":N}` |
-| **`/api/unblock-all`** | POST | Libera todos los bloqueos temporales |
-| **`/api/events`** | GET | Log de eventos recientes (ring buffer 200 eventos) |
+| `/api/metrics` | GET | Historial de muestras (ultimos 6 min, 10s por muestra) |
+| `/api/health` | GET | Health check: `{"status":"ok","uptime_seconds":N}` |
+| `/api/events` | GET | Log de eventos recientes (ring buffer 200 eventos) |
+| `/api/relay/ping` | POST | Heartbeat de guard-relay - abierto a cualquier IP, requiere Bearer. Body: `{"relay_id":"<uuid>"}` |
+
+### guard-panel
+
+Panel: `http://127.0.0.1:7700/api/` (solo localhost - no expuesto publicamente)
+
+| Endpoint | Metodo | Descripcion |
+|----------|--------|-------------|
+| `/api/nodes` | GET | Lista de nodos configurados (id + name, sin tokens ni URLs internas) |
+| `/api/node/{id}/{svc}/{endpoint}` | ANY | Proxy hacia el guard del nodo. `svc` = `login` o `game`. Ejemplo: `/api/node/vps1/login/status` → `http://vps1:7771/api/status` |
+| `/api/diag` | GET | Prueba TCP + HTTP a todos los nodos y retorna latencias, status codes y body. Usado por el boton "Test Conectividad" |
 
 ### Ejemplo
 
 ```bash
-# Health check
-curl http://127.0.0.1:7771/api/health
+# Health check de un nodo desde VPS3
+curl -H "Authorization: Bearer token-secreto" http://38.54.45.154:7771/api/health
 
-# Ver eventos recientes
-curl http://127.0.0.1:7771/api/events
+# Ver estado via el panel (proxy)
+curl http://127.0.0.1:7700/api/node/vps1/login/status
 
-# Desbloquear todos
-curl -X POST http://127.0.0.1:7771/api/unblock-all
+# Diagnostico de conectividad desde el panel
+curl http://127.0.0.1:7700/api/diag
+
+# Desbloquear todos en un nodo via el panel
+curl -X POST http://127.0.0.1:7700/api/node/vps1/login/unblock-all
 ```
 
 ## Protecciones implementadas
@@ -305,25 +413,38 @@ curl -X POST http://127.0.0.1:7771/api/unblock-all
 
 ## Ejecutar como servicio en Windows
 
-### Con NSSM (recomendado)
+### guard-login y guard-game - sc.exe (Windows Service nativo)
+
+`guard-login.exe` y `guard-game.exe` tienen soporte nativo de Windows Service.
+Usar `sc.exe`, **no NSSM** - NSSM los lanza como proceso hijo y el exe falla
+al intentar conectarse al SCM ("El proceso del servicio no puede conectar...").
 
 ```powershell
-nssm install GuardLogin "C:\ruta\guard-login.exe"
-nssm set GuardLogin AppDirectory "C:\ruta"
-nssm start GuardLogin
+# Registrar fuente de Event Log (necesario la primera vez)
+New-EventLog -LogName Application -Source "GuardLogin" -ErrorAction SilentlyContinue
+New-EventLog -LogName Application -Source "GuardGame"  -ErrorAction SilentlyContinue
 
-nssm install GuardGame "C:\ruta\guard-game.exe"
-nssm set GuardGame AppDirectory "C:\ruta"
-nssm start GuardGame
+# Instalar servicios
+sc.exe create GuardLogin binPath= "\"C:\guard\guard-login.exe\" -config \"C:\guard\config.json\" -profile login" start= auto obj= LocalSystem DisplayName= "Guard Login Proxy"
+sc.exe create GuardGame  binPath= "\"C:\guard\guard-game.exe\"  -config \"C:\guard\config.json\" -profile game"  start= auto obj= LocalSystem DisplayName= "Guard Game Proxy"
+
+sc.exe start GuardLogin
+sc.exe start GuardGame
 ```
 
-### Con sc.exe (servicio nativo)
+### guard-panel - NSSM
+
+`guard-panel.exe` no tiene soporte nativo de Windows Service (es un servidor HTTP puro).
+Usar NSSM para gestionarlo:
 
 ```powershell
-sc create GuardLogin binPath= "C:\ruta\guard-login.exe" start= auto
-sc create GuardGame  binPath= "C:\ruta\guard-game.exe"  start= auto
-sc start GuardLogin
-sc start GuardGame
+nssm install GuardPanel "C:\guard\guard-panel.exe"
+nssm set GuardPanel AppDirectory  "C:\guard"
+nssm set GuardPanel AppParameters "-nodes nodes.json"
+nssm set GuardPanel Start         SERVICE_AUTO_START
+nssm set GuardPanel AppStdout     "C:\guard\log-panel.txt"
+nssm set GuardPanel AppStderr     "C:\guard\log-panel.txt"
+nssm start GuardPanel
 ```
 
 ## Firewall de Windows recomendado

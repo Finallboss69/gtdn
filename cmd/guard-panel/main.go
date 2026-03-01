@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -76,6 +77,77 @@ func main() {
 
 	client := &http.Client{Timeout: 5 * time.Second}
 	mux := http.NewServeMux()
+
+	// ─── Diagnóstico de conectividad ──────────────────────────────────────────
+	type diagResult struct {
+		URL        string `json:"url"`
+		TcpOk      bool   `json:"tcp_ok"`
+		TcpMs      int64  `json:"tcp_ms"`
+		TcpErr     string `json:"tcp_err,omitempty"`
+		HttpOk     bool   `json:"http_ok"`
+		HttpStatus int    `json:"http_status"`
+		HttpErr    string `json:"http_err,omitempty"`
+		HttpMs     int64  `json:"http_ms"`
+		HttpBody   string `json:"http_body,omitempty"`
+	}
+	type nodeDiag struct {
+		ID    string     `json:"id"`
+		Name  string     `json:"name"`
+		Login diagResult `json:"login"`
+		Game  diagResult `json:"game"`
+	}
+	probeSvc := func(rawURL, token string) diagResult {
+		res := diagResult{URL: rawURL}
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			res.TcpErr = "URL invalida: " + err.Error()
+			return res
+		}
+		t0 := time.Now()
+		conn, err := net.DialTimeout("tcp", u.Host, 3*time.Second)
+		res.TcpMs = time.Since(t0).Milliseconds()
+		if err != nil {
+			res.TcpErr = err.Error()
+			return res
+		}
+		conn.Close()
+		res.TcpOk = true
+		req, err := http.NewRequest("GET", rawURL+"/api/status", nil)
+		if err != nil {
+			res.HttpErr = err.Error()
+			return res
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		t1 := time.Now()
+		resp, err := client.Do(req)
+		res.HttpMs = time.Since(t1).Milliseconds()
+		if err != nil {
+			res.HttpErr = err.Error()
+			return res
+		}
+		defer resp.Body.Close()
+		res.HttpStatus = resp.StatusCode
+		body, _ := io.ReadAll(resp.Body)
+		if len(body) > 300 {
+			body = body[:300]
+		}
+		res.HttpBody = string(body)
+		res.HttpOk = resp.StatusCode == 200
+		return res
+	}
+	mux.HandleFunc("/api/diag", func(w http.ResponseWriter, r *http.Request) {
+		results := make([]nodeDiag, 0, len(cfg.Nodes))
+		for _, n := range cfg.Nodes {
+			nd := nodeDiag{ID: n.ID, Name: n.Name}
+			nd.Login = probeSvc(n.LoginURL, n.Token)
+			nd.Game  = probeSvc(n.GameURL,  n.Token)
+			results = append(results, nd)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
+	})
 
 	// ─── Panel HTML ───────────────────────────────────────────────────────────
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

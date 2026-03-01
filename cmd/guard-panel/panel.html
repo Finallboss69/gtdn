@@ -230,6 +230,44 @@ tr:hover td { background: var(--card2); }
 
 /* ===== NO NODES ===== */
 .no-node { color: var(--muted); padding: 20px; text-align: center; font-size: 12px; }
+
+/* ===== DIAG MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; padding: 16px;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px; width: 100%; max-width: 720px;
+  max-height: 90vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modal-header h3 { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+.modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+.modal-close:hover { color: var(--text); }
+.diag-node { margin-bottom: 14px; }
+.diag-node-name { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+.diag-svc { background: var(--card2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; }
+.diag-svc:last-child { margin-bottom: 0; }
+.diag-svc-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+.diag-svc-title.login { color: var(--login); }
+.diag-svc-title.game  { color: var(--game); }
+.diag-row { display: flex; gap: 8px; align-items: baseline; font-size: 11px; margin-bottom: 3px; }
+.diag-row:last-child { margin-bottom: 0; }
+.diag-lbl { color: var(--muted); min-width: 44px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+.diag-ok  { color: var(--green); font-weight: 700; font-family: monospace; flex-shrink: 0; }
+.diag-err { color: var(--red);   font-weight: 700; font-family: monospace; flex-shrink: 0; }
+.diag-val { color: var(--text);  font-family: monospace; font-size: 11px; }
+.diag-body { color: var(--muted); font-size: 10px; word-break: break-all; white-space: pre-wrap; font-family: monospace; }
+.diag-spinner { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; padding: 10px 0; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -237,6 +275,7 @@ tr:hover td { background: var(--card2); }
 <div class="header">
   <div class="logo">GUARD<span>_</span>GO <span style="font-size:12px;letter-spacing:0">Panel</span></div>
   <div class="header-right">
+    <button class="btn btn-blue btn-sm" onclick="runDiag()">Test Conectividad</button>
     <div class="refresh-info">
       <div class="dot"></div>
       Auto-refresh 5s &nbsp;|&nbsp; <span id="last-update">—</span>
@@ -435,6 +474,19 @@ tr:hover td { background: var(--card2); }
   <div id="events-list"><div class="ev-empty">Sin eventos</div></div>
 </div>
 
+<!-- ===== DIAG MODAL ===== -->
+<div class="modal-overlay hidden" id="diag-modal" onclick="if(event.target===this)closeDiag()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Test de Conectividad &mdash; VPS3 &rarr; Nodos</h3>
+      <button class="modal-close" onclick="closeDiag()">&#x2715;</button>
+    </div>
+    <div id="diag-content">
+      <div class="diag-spinner"><div class="spin"></div> Probando conexiones...</div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -523,6 +575,7 @@ function buildNodeGrid(){
         </div>
         <div class="nc-progwrap"><div class="nc-progbar" id="nc-gb-${n.id}" style="width:0"></div></div>
         <div class="nc-rejects">Rechazos: <span id="nc-rej-${n.id}">—</span></div>
+        <div class="nc-rejects" id="nc-relay-row-${n.id}" style="display:none">Relays: <span id="nc-relay-${n.id}" style="color:var(--accent);font-family:monospace">0</span></div>
       </div>
     </div>`).join('');
   // Populate action node selector
@@ -569,6 +622,13 @@ function updateNodeCard(nodeId, lResp, gResp){
   if(bl && lOk && lData.drain_mode){
     bl.textContent='DRAIN'; bl.className='badge b-drain';
   }
+
+  // Relay count (from login status)
+  const relayCount=(lOk && lData.relay_count>0)?lData.relay_count:0;
+  const relayRow=document.getElementById('nc-relay-row-'+nodeId);
+  const relayEl=document.getElementById('nc-relay-'+nodeId);
+  if(relayRow){ relayRow.style.display=relayCount>0?'':'none'; }
+  if(relayEl){ relayEl.textContent=relayCount; }
 }
 
 // ===================================================================
@@ -839,6 +899,55 @@ async function manualBlock(){
   toast(`Bloqueado: ${ip} [${svc}@${nodeId}]`,'ok');
   document.getElementById('block-ip').value='';
   refresh();
+}
+
+// ===================================================================
+// DIAGNOSTICO DE CONECTIVIDAD
+// ===================================================================
+async function runDiag(){
+  const modal=document.getElementById('diag-modal');
+  const content=document.getElementById('diag-content');
+  modal.classList.remove('hidden');
+  content.innerHTML='<div class="diag-spinner"><div class="spin"></div> Probando conexiones...</div>';
+  const r=await apiFetch('/api/diag');
+  if(!r.ok||!Array.isArray(r.data)){
+    content.innerHTML='<div style="color:var(--red);padding:10px">Error al obtener diagnostico</div>';
+    return;
+  }
+  content.innerHTML=r.data.map(nd=>`
+    <div class="diag-node">
+      <div class="diag-node-name">${esc(nd.name)}</div>
+      ${diagSvcRow('login', nd.login)}
+      ${diagSvcRow('game',  nd.game)}
+    </div>`).join('');
+}
+
+function closeDiag(){
+  document.getElementById('diag-modal').classList.add('hidden');
+}
+
+function diagSvcRow(svc, d){
+  const tcpOk=d.tcp_ok;
+  const httpOk=d.http_ok;
+  const tcpBadge=tcpOk?'<span class="diag-ok">TCP OK</span>':'<span class="diag-err">TCP FALLO</span>';
+  const httpBadge=httpOk?'<span class="diag-ok">HTTP OK</span>':'<span class="diag-err">HTTP FALLO</span>';
+  return `<div class="diag-svc">
+    <div class="diag-svc-title ${svc}">${svc.toUpperCase()} &mdash; <span style="color:var(--muted);font-weight:400;font-size:10px">${esc(d.url)}</span></div>
+    <div class="diag-row">
+      <span class="diag-lbl">TCP</span>
+      ${tcpBadge}
+      <span class="diag-val">${d.tcp_ms}ms${d.tcp_err?' &mdash; '+esc(d.tcp_err):''}</span>
+    </div>
+    ${tcpOk?`<div class="diag-row">
+      <span class="diag-lbl">HTTP</span>
+      ${httpBadge}
+      <span class="diag-val">HTTP ${d.http_status||'?'} &mdash; ${d.http_ms}ms${d.http_err?' &mdash; '+esc(d.http_err):''}</span>
+    </div>`:''}
+    ${d.http_body?`<div class="diag-row">
+      <span class="diag-lbl">Body</span>
+      <span class="diag-body">${esc(d.http_body)}</span>
+    </div>`:''}
+  </div>`;
 }
 
 // ===================================================================
